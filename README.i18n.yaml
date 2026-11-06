@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write README.md
+/:
+  en: 96f9b2fd3024efd6
+  zh: c48ef1d5236c18d3
+/dsh-qq-onebot:
+  en: dc50cd39386c921b
+  zh: 751492f2b328684f
+/dsh-qq-onebot/summary:
+  en: 23aa1d06a1d96450
+  zh: 948d57fd70997372
+/dsh-qq-onebot/table-of-contents:
+  en: 2fee9973f19f9401
+  zh: 89dac970fbb81e6b
+/dsh-qq-onebot/use-this-package:
+  en: 1c49c2b4959bfbe4
+  zh: b907c75522ab0900
+/dsh-qq-onebot/understand-the-implementation:
+  en: 440482d3a106ee5b
+  zh: 70148fe6fa44e3ea
+/dsh-qq-onebot/model-experience:
+  en: b6a025d9c33fd090
+  zh: 873061e76ffa6ca4
+/dsh-qq-onebot/known-limitations-and-deferred-work:
+  en: fde4100043753942
+  zh: 879352d4ec123177
+/dsh-qq-onebot/further-exploration:
+  en: 82cb90d4e68a18ed
+  zh: bec670ebe162201a
+/dsh-qq-onebot/dev-note:
+  en: a8bd2c8acda18296
+  zh: 15f6727f8fd08f43
