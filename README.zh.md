@@ -8,11 +8,12 @@ kind: "package-bundle"
 
 ## 摘要
 
-本开发候选包提供一个选定的 OneBot 11 账号，保留真实提及、引用、分享卡片和媒体引用，检查账号健康，并对发送回执分类；结果不确定时不重试。它不增加模型、人设或自动回复。隔离 DSH 安装已通过，图形设置与状态页面仍未完成，尚未公开发布。
+本开发候选包提供一个选定的 OneBot 11 账号和原生 Web 配置页，保留提及、引用、分享卡片和媒体引用，检查账号健康并区分回执；不确定时不重试。所有者页面区分草稿、已保存版本和实际连接证据。本包不增加模型、人设或自动回复，尚未公开发布。
 
 ## 目录
 
 - [使用本包](#use-this-package)
+- [验证本包](#verify-this-package)
 - [理解实现](#understand-the-implementation)
 - [模型体验](#model-experience)
 - [已知限制与待办](#known-limitations-and-deferred-work)
@@ -20,15 +21,33 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-候选目标是 DSH 0.2.2-rc.1、Cordis 4.1、Node 22.19 或 24。这是 bundle 层，不是应用程序入口。标准 profile 需提供 DSH 凭据服务，OneBot 11 协议端需已存在；本包不启动或登录 QQ。
+候选目标是 DSH 0.2.2-rc.1、Cordis 4.1、Node 22.19 或 24。这是 bundle 层，不是应用程序入口。profile 提供凭据与 ConfigEditor；原生 Web profile 还提供 Typert 注册表、网关、远程访问和插件管理。OneBot 11 端点需已存在；本包不启动或登录 QQ。
 
-插入的条目为 qq-onebot-transport，默认停用。启用时必须指定准确账号及允许群；私聊需开启 allowPrivate，privateUsers 可进一步限制。accessTokenEnv 是 DSH 凭据引用，不是密钥原文。每次新握手会重新解析这个引用。
+Bundle 插入默认停用的 qq-onebot-transport 和独立的 qq-onebot-control 条目。启用时必须指定准确账号及允许群。私聊需开启 allowPrivate；privateUsers 留空允许所有人，填写后限制为名单内用户。accessTokenEnv 是 DSH 凭据引用，不是密钥原文。每次新握手会重新解析该引用。
 
 正向模式使用经过认证的通用 ws 连接（仅回环）或远程 wss；反向模式只监听回环并接受一条经过认证的通用连接。不支持分开的 API/Event 连接、HTTP 通道和 OneBot 12。
 
-隔离安装使用 profile 的 cordis.patch.yml 配置并重载条目。本候选尚未实现自动生成的实时设置表单和图形状态面板；不能只因导出了 schema 就认为设置页面可用。
+通过 dsh plugin --profile PROFILE add ARCHIVE 安装后，在原生 Web 应用打开“插件 → dsh-qq-onebot”，可编辑连接、访问与高级限制。保存使用 ConfigEditor 的校验与事务编辑，保留未改动的表达式，拒绝过期版本；启用失败由宿主编辑器回滚。重连只使用已保存配置，不重发消息。
+
+控制器在通道停用或重载后继续存在；即使通用 Remote 策略放行，也只允许可信宿主所有者操作。它只检查凭据是否配置，不读取密钥值。状态面板分别显示条目激活、连接、账号核验及有效在线证据；保存成功不能证明 QQ 已在线。
 
 宿主服务 ctx.im 发布已接纳消息，并提供可用性和发送操作。ctx.qqOnebot 提供仅宿主使用的来源查询、原始消息快照和限定目标的出站字节引用。独立消费者决定是否回复，并负责持久请求标识。
+
+<a id="verify-this-package"></a>
+## 验证本包
+
+在本仓库运行 npm run check。集成测试前先构建并打包候选。每项测试用受支持的 dsh CLI 启动全新隔离 profile 和合成回环端点，不打开用户浏览器，也不连接 QQ。显式提供独立 dsh-im-kit 0.2.0 发行包，不读取相邻源码仓库或生产 profile。
+
+```sh
+npm pack --pack-destination artifacts
+npm run test:dsh -- --im-kit-archive PATH_TO_IM_KIT_TGZ
+npm run test:control -- --im-kit-archive PATH_TO_IM_KIT_TGZ
+npm run test:web -- --im-kit-archive PATH_TO_IM_KIT_TGZ
+```
+
+Web 测试需安装 Playwright 对应的 Chromium headless shell；将 PLAYWRIGHT_BROWSERS_PATH 指向测试专用目录，先运行 node node_modules/playwright/cli.js install chromium --only-shell，再执行 test:web。测试使用全新浏览器资料，结果保存在 .test-artifacts；本源码仓库包含全部三种测试入口和探针。
+
+QA 依赖覆盖是经过测试的开发输入，不代表使用者的宿主已更新。插件自身的 overrides 不会传递到消费 profile，宿主预构建资源也可能内嵌其他版本。宿主依赖更新需另行应用和验证；npm audit 结果只覆盖记录的包依赖树。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
@@ -36,7 +55,7 @@ kind: "package-bundle"
 <details>
 <summary>实现细节</summary>
 
-[Bundle 补丁](cordis.patch.yml)插入默认停用条目；[入口](src/index.ts)负责服务注册与清理；[通道](src/transport.ts)区分 QQ 身份核验与连接状态，保留处理中媒体引用，共享成员查询，并提供脱敏诊断；[连接层](src/socket.ts)关联 RPC 回执、限制资源并等待完整关闭。
+[Bundle 补丁](cordis.patch.yml)分开通道与所有者控制；[入口](src/index.ts)负责消息服务；[控制器](src/control.ts)只编辑指定条目；[原生页面](src/client/page.tsx)刷新状态时保留草稿；[通道](src/transport.ts)核验身份、保留使用中引用并共享成员查询；[连接层](src/socket.ts)关联回执、限制资源并等待完整关闭。
 
 </details>
 
@@ -54,7 +73,7 @@ kind: "package-bundle"
 - 禁言判断使用可取得的成员时间戳和已观测通知；协议缺少证据时，不能证明所有预先存在的全群禁言状态。
 - 文件和合并转发输出需后续独立能力适配；本包明确拒绝，不伪装成文字或图片。
 - 不包含协议客户端、凭据、私人人设、用户归档或图库。
-- 本候选尚未完成真实 QQ、模型 API、UI 和 Linux 验收。
+- 原生 Web 验收使用隔离合成端点；真实 QQ、模型 API、桌面客户端及 Linux 不在本候选现有证据范围内。
 
 ## 延伸阅读
 

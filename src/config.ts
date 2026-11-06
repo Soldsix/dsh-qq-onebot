@@ -1,45 +1,12 @@
 /** Validated deployment settings; disabled installations open no connections. */
 import z from '@deepseek-ai/schemastery'
 import { identifier, type AccountRef } from 'dsh-im-kit'
+import type { Config as Settings, ConfigKey } from './config-fields.ts'
 
-/** Operator-controlled transport and resource limits. */
-export interface Config {
-  enabled: boolean
-  mode: 'forward' | 'reverse'
-  tenantId: string
-  accountId: string
-  forwardUrl: string
-  reverseHost: '127.0.0.1' | '::1'
-  reversePort: number
-  reversePath: string
-  accessTokenEnv: string
-  allowedGroups: string[]
-  allowPrivate: boolean
-  privateUsers: string[]
-  connectTimeoutMs: number
-  actionTimeoutMs: number
-  healthIntervalMs: number
-  healthTimeoutMs: number
-  onlineStaleMs: number
-  reconnectMinMs: number
-  reconnectMaxMs: number
-  shutdownTimeoutMs: number
-  membershipCacheMs: number
-  maxPendingActions: number
-  maxFrameBytes: number
-  maxBufferedBytes: number
-  maxSegments: number
-  maxTextChars: number
-  maxReferences: number
-  maxPendingMessages: number
-  maxQueuedMessageBytes: number
-  maxReferenceBytes: number
-  maxMediaBytes: number
-  maxStoredMediaBytes: number
-  referenceTtlMs: number
-}
+/** Profile schema output, shared structurally with the browser-safe settings. */
+export interface Config extends Settings {}
 
-/** Profile configuration projected by DSH into its generated settings form. */
+/** Profile schema; the bundle's native page edits ordinary fields through ConfigEditor. */
 export const Config: z<Config> = z.object({
   enabled: z.boolean().default(false),
   mode: z.union([z.const('forward'), z.const('reverse')]).default('forward'),
@@ -85,6 +52,35 @@ export interface Spec extends Config {
 /** Host credential service lookup; references, never values, live in profile configuration. */
 export type CredentialReader = (reference: string) => Promise<string | undefined>
 
+/** A field-level error that never embeds its value in diagnostics. */
+export class ConfigIssue extends Error {
+  constructor(readonly field: ConfigKey) { super(`Invalid OneBot configuration field: ${field}`) }
+}
+
+/**
+ * Validate cross-field and endpoint settings without resolving credentials.
+ * @param config - schema-parsed settings; disabled drafts may omit connection identity.
+ * @throws ConfigIssue when a field or required enabled value is invalid.
+ */
+export function validateConfig(config: Config): void {
+  const canonical = (id: string) => /^[1-9][0-9]*$/.test(id) && Number.isSafeInteger(Number(id))
+  if ((config.enabled || config.accountId) && !canonical(config.accountId)) throw new ConfigIssue('accountId')
+  for (const field of ['allowedGroups', 'privateUsers'] as const) {
+    if (config[field].some(id => !canonical(id)) || new Set(config[field]).size !== config[field].length) throw new ConfigIssue(field)
+  }
+  try { identifier('im.tenant', config.tenantId) } catch (error) { throw new ConfigIssue('tenantId') }
+  if (config.reconnectMaxMs < config.reconnectMinMs) throw new ConfigIssue('reconnectMaxMs')
+  if (config.maxStoredMediaBytes < config.maxMediaBytes) throw new ConfigIssue('maxStoredMediaBytes')
+  if ((config.enabled || config.accessTokenEnv) && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(config.accessTokenEnv)) throw new ConfigIssue('accessTokenEnv')
+  if ((config.enabled && config.mode === 'forward') || config.forwardUrl) {
+    let endpoint: URL
+    try { endpoint = new URL(config.forwardUrl) } catch (error) { throw new ConfigIssue('forwardUrl') }
+    if (!['ws:', 'wss:'].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new ConfigIssue('forwardUrl')
+    if (endpoint.protocol === 'ws:' && !['127.0.0.1', '[::1]', 'localhost'].includes(endpoint.hostname)) throw new ConfigIssue('forwardUrl')
+  }
+  if (((config.enabled && config.mode === 'reverse') || config.reversePath) && (!config.reversePath.startsWith('/') || /[?#\s]/.test(config.reversePath))) throw new ConfigIssue('reversePath')
+}
+
 /**
  * Resolve a validated config against an explicitly supplied environment.
  * @param config - schema-admitted operator settings.
@@ -95,30 +91,13 @@ export type CredentialReader = (reference: string) => Promise<string | undefined
  */
 export function resolveConfig(config: Config, env: Readonly<Record<string, string | undefined>>, readCredential?: CredentialReader): Spec | null {
   if (!config.enabled) return null
-  if (!/^[1-9][0-9]*$/.test(config.accountId) || !Number.isSafeInteger(Number(config.accountId))) throw new Error('A canonical safe-integer accountId is required')
-  for (const id of [...config.allowedGroups, ...config.privateUsers]) {
-    if (!/^[1-9][0-9]*$/.test(id) || !Number.isSafeInteger(Number(id))) throw new Error('Conversation allowlists require canonical safe-integer IDs')
-  }
-  if (new Set(config.allowedGroups).size !== config.allowedGroups.length || new Set(config.privateUsers).size !== config.privateUsers.length) {
-    throw new Error('Conversation allowlists contain duplicate IDs')
-  }
-  if (config.reconnectMaxMs < config.reconnectMinMs) throw new Error('reconnectMaxMs must cover reconnectMinMs')
-  if (config.maxStoredMediaBytes < config.maxMediaBytes) throw new Error('maxStoredMediaBytes must cover maxMediaBytes')
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(config.accessTokenEnv)) throw new Error('accessTokenEnv must name an environment variable')
+  validateConfig(config)
   const validateToken = (value: string | undefined): string => {
     if (!value) throw new Error('Configured OneBot access-token reference is empty')
     if (/[\u0000-\u0020\u007f]/.test(value)) throw new Error('OneBot access token contains invalid header characters')
     return value
   }
   if (!readCredential) validateToken(env[config.accessTokenEnv])
-  const endpoint = new URL(config.forwardUrl)
-  if (!['ws:', 'wss:'].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new Error('Forward endpoint requires ws/wss without embedded credentials, query or fragment')
-  }
-  if (endpoint.protocol === 'ws:' && !['127.0.0.1', '[::1]', 'localhost'].includes(endpoint.hostname)) {
-    throw new Error('Remote forward endpoints require wss')
-  }
-  if (!config.reversePath.startsWith('/') || /[?#\s]/.test(config.reversePath)) throw new Error('reversePath must be an absolute path without query or fragment')
   return {
     ...config, accessToken: async () => validateToken(readCredential ? await readCredential(config.accessTokenEnv) : env[config.accessTokenEnv]),
     account: {

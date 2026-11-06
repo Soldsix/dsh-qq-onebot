@@ -1,23 +1,7 @@
 {
-  "compilerOptions": {
-    "target": "ES2023",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "noImplicitAny": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "verbatimModuleSyntax": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": false,
-    "rootDir": "src",
-    "outDir": "dist",
-    "declaration": true,
-    "sourceMap": false,
-    "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
-  },
-  "include": [
-    "src/**/*.ts"
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.host.json" },
+    { "path": "./tsconfig.client.json" }
   ]
 }

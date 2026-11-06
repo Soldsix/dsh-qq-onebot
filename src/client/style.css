@@ -1,0 +1,26 @@
+.qqob-page { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); font-size: 13px; padding: 4px 0 16px; max-width: 780px; }
+.qqob-page p { margin: 0; line-height: 1.6; }
+.qqob-description, .qqob-help { color: var(--dsw-alias-label-secondary); }
+.qqob-page strong, .qqob-page legend, .qqob-page summary { font-weight: 500; }
+.qqob-status { border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; background: var(--dsw-alias-bg-layer-1); }
+.qqob-status dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0; }
+.qqob-status dl > div { display: flex; gap: 12px; justify-content: space-between; }
+.qqob-status dt { color: var(--dsw-alias-label-secondary); }
+.qqob-status dd { margin: 0; }
+.qqob-page fieldset { border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; margin: 0; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.qqob-page legend { padding: 0 6px; }
+.qqob-field { display: grid; grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1.1fr); gap: 6px 20px; align-items: center; }
+.qqob-field > label { line-height: 1.5; }
+.qqob-field > span { min-width: 0; }
+.qqob-field input { width: 100%; }
+.qqob-field select { width: 100%; min-height: 36px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); padding: 0 10px; font: inherit; }
+.qqob-field-error { grid-column: 2; color: var(--dsw-alias-state-error-primary); }
+.qqob-query-error { color: var(--dsw-alias-state-error-primary); }
+.qqob-draft { color: var(--dsw-alias-label-secondary); }
+.qqob-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.qqob-page summary { cursor: pointer; padding: 4px 0; }
+.qqob-page details[open] > fieldset { margin-top: 10px; }
+.qqob-spinner { width: 20px; height: 20px; border: 2px solid var(--dsw-alias-border-l2); border-top-color: var(--dsw-alias-label-primary); border-radius: 50%; animation: qqob-spin 1s linear infinite; margin: 36px auto; }
+@keyframes qqob-spin { to { transform: rotate(360deg); } }
+@media (max-width: 580px) { .qqob-field { grid-template-columns: minmax(0, 1fr); } .qqob-field-error { grid-column: 1; } .qqob-status dl { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .qqob-spinner { animation: none; } }

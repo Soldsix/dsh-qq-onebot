@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "types": ["node"], "composite": true, "tsBuildInfoFile": "./dist/.host.tsbuildinfo" },
+  "include": ["src/*.ts"],
+  "exclude": ["src/client"]
+}

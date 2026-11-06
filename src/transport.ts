@@ -11,22 +11,9 @@ import type { Spec } from './config.ts'
 import { OneBotSocket } from './socket.ts'
 import { allowsScope, isRecord, parseMessage, wireId, type JsonRecord, type MediaSource, type ParsedMessage, type WireSegment } from './wire.ts'
 import { waitFor } from './waiter.ts'
-
-/** Sanitized account state; connected alone is never presented as QQ online. */
-export interface OneBotStatus {
-  readonly phase: 'connecting' | 'verifying' | 'online' | 'offline' | 'blocked' | 'stopped'
-  readonly connected: boolean
-  readonly verified: boolean
-  readonly online: boolean
-  readonly received: number
-  readonly duplicates: number
-  readonly rejected: number
-  readonly notices: number
-  readonly activeDeliveries: number
-  readonly storedReferences: number
-  readonly storedMediaBytes: number
-  readonly fault: string | null
-}
+import { configRevision } from './config-revision.ts'
+import type { OneBotStatus } from './status.ts'
+export type { OneBotStatus } from './status.ts'
 
 /** Callbacks belong to the owning plugin; publishers must settle after cancellation. */
 export interface TransportHooks {
@@ -43,6 +30,8 @@ interface Mute { individual?: { readonly until: number; readonly at: number }; w
 /** One verified QQ account, with no model, persona or automatic reply behavior. */
 export class OneBotTransport implements ImTransport {
   readonly account: AccountRef
+  /** Revision of public settings applied to this transport instance. */
+  readonly configRevision: string
   readonly #spec: Spec
   readonly #hooks: TransportHooks
   readonly #socket: OneBotSocket
@@ -77,6 +66,7 @@ export class OneBotTransport implements ImTransport {
 
   constructor(spec: Spec, hooks: TransportHooks) {
     this.account = spec.account
+    this.configRevision = configRevision(spec)
     this.#spec = spec
     this.#hooks = hooks
     this.#socket = new OneBotSocket(spec, {

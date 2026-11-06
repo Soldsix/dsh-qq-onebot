@@ -17,10 +17,13 @@ export function verifyManifest(manifest){
  assert.equal(manifest.peerDependencies?.['dsh-im-kit'],'0.2.0')
  assert.equal(manifest.exports?.['.']?.import,'./dist/index.js')
  assert.equal(manifest.exports?.['.']?.types,'./dist/index.d.ts')
+ assert.equal(manifest.exports?.['./control']?.import,'./dist/control.js')
+ assert.equal(manifest.exports?.['./client']?.default,'./dist/client.js')
+ assert.equal(manifest.dsh?.client?.platform,'web')
  for(const section of ['dependencies','peerDependencies','devDependencies'])for(const [name,value]of Object.entries(manifest[section]??{}))assert.ok(!/^(?:file:|link:|workspace:|[a-z]:[\\/]|[\\/])/i.test(value),'Nonportable dependency '+name)
 }
 
-/** Check paired bundle documentation without claiming unfinished UI works. */
+/** Check the line-aligned bundle documentation and common navigation anchors. */
 export function verifyPair(english,chinese){
  for(const text of [english,chinese]){
   assert.match(text,/^kind: "package-bundle"$/m)
@@ -36,8 +39,8 @@ export function verifyPair(english,chinese){
 /** Reject files not deliberately permitted in the public artifact. */
 export function verifyFiles(paths){
  const exact=['LICENSE','README.md','README.zh.md','README.i18n.yaml','package.json','cordis.patch.yml']
- for(const path of paths)assert.ok(exact.includes(path)||/^dist\/[a-z][a-z-]*\.(?:js|d\.ts)$/.test(path),'Unexpected published file '+path)
- for(const required of [...exact,'dist/index.js','dist/index.d.ts'])assert.ok(paths.includes(required),'Missing public file '+required)
+ for(const path of paths)assert.ok(exact.includes(path)||/^dist\/(?:client\/)?[a-z][a-z-]*\.(?:js|d\.ts)$/.test(path)||/^docs\/upgrade-guide\/v0\.1\.0\/native-control\/guide(?:\.zh\.md|\.md|\.i18n\.yaml)$/.test(path),'Unexpected published file '+path)
+ for(const required of [...exact,'dist/index.js','dist/index.d.ts','dist/control.js','dist/client.js','dist/client/index.d.ts'])assert.ok(paths.includes(required),'Missing public file '+required)
 }
 
 async function main(){
@@ -45,6 +48,12 @@ async function main(){
  const manifest=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'))
  verifyManifest(manifest)
  verifyPair(await readFile(new URL('../README.md',import.meta.url),'utf8'),await readFile(new URL('../README.zh.md',import.meta.url),'utf8'))
+ const guide=await readFile(new URL('../docs/upgrade-guide/v0.1.0/native-control/guide.md',import.meta.url),'utf8')
+ const chineseGuide=await readFile(new URL('../docs/upgrade-guide/v0.1.0/native-control/guide.zh.md',import.meta.url),'utf8')
+ assert.match(guide,/^kind: upgrade-guide$/m);assert.match(chineseGuide,/^kind: upgrade-guide$/m)
+ assert.deepEqual([...guide.matchAll(/^## (.+)$/gm)].map(match=>match[1]),['Change','Migration'])
+ assert.equal(guide.split('\n').length,chineseGuide.split('\n').length)
+ assert.ok(guide.trim().split(/\s+/).length<=500)
  const patch=await readFile(new URL('../cordis.patch.yml',import.meta.url),'utf8')
  assert.match(patch,/enabled: false/)
  for(const entry of await readdir(new URL('../src/',import.meta.url),{withFileTypes:true})){
@@ -55,6 +64,7 @@ async function main(){
   assert.equal(text.endsWith('\n')&&!text.endsWith('\n\n'),true,'Trailing newline: '+entry.name)
  }
  assert.ok(process.env.npm_execpath,'Run via npm run check')
+ assert.match(await readFile(new URL('../dist/client.js',import.meta.url),'utf8'),/Copyright \(c\) 2025 Colin McDonnell/)
  const child=spawn(process.execPath,[process.env.npm_execpath,'pack','--dry-run','--json','--ignore-scripts'],{cwd:root,signal:AbortSignal.timeout(60000),windowsHide:true,stdio:['ignore','pipe','pipe']})
  let stdout='',stderr='',failure
  child.stdout.on('data',data=>{stdout+=data});child.stderr.on('data',data=>{stderr+=data});child.once('error',error=>{failure=error})
@@ -63,6 +73,7 @@ async function main(){
  assert.equal(code,0,stderr)
  const pack=JSON.parse(stdout)
  assert.equal(pack.length,1);verifyFiles(pack[0].files.map(file=>file.path))
+ for(const name of ['guide.md','guide.zh.md','guide.i18n.yaml'])assert.ok(pack[0].files.some(file=>file.path==='docs/upgrade-guide/v0.1.0/native-control/'+name),'Missing upgrade guide '+name)
  console.log(JSON.stringify({package:manifest.name,checks:['manifest','paired-docs','disabled-bundle','source-hygiene','packed-file-allowlist'],passed:true}))
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))await main()

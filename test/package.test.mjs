@@ -16,7 +16,7 @@ test('publication checks reject unpaired docs and accidental private artifact fi
  verifyPair(en,zh)
  assert.throws(()=>verifyPair(en,zh+'extra\n'))
  assert.throws(()=>verifyPair(en.replace('package-bundle','package-library'),zh))
- const paths=['LICENSE','README.md','README.zh.md','README.i18n.yaml','package.json','cordis.patch.yml','dist/index.js','dist/index.d.ts']
+ const paths=['LICENSE','README.md','README.zh.md','README.i18n.yaml','package.json','cordis.patch.yml','dist/index.js','dist/index.d.ts','dist/control.js','dist/client.js','dist/client/index.d.ts']
  verifyFiles(paths)
  assert.throws(()=>verifyFiles([...paths,'.env']))
  assert.throws(()=>verifyFiles([...paths,'data/private.sqlite']))

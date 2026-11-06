@@ -3,3 +3,5 @@
       name: dsh-qq-onebot
       config:
         enabled: false
+    - id: qq-onebot-control
+      name: dsh-qq-onebot/control
