@@ -28,6 +28,15 @@ test('the disabled bundle opens no account service and performs no credential re
  await owner.dispose()
 })
 
+test('a stalled credential provider cannot hold profile startup indefinitely',options,async t=>{
+ const pending=deferred()
+ const {ctx,mount}=await context(t,()=>pending.promise)
+ await assert.rejects(mount(Plugin,Plugin.Config({enabled:true,accountId:'90000001',connectTimeoutMs:50})),/OneBot credential lookup failed/)
+ assert.equal(ctx.get('im'),undefined)
+ assert.equal(ctx.get('qqOnebot'),undefined)
+ pending.resolve({value:'late-fixture-token',source:'test'})
+})
+
 test('a Cordis consumer receives and sends through the bundle and unloads with it',options,async t=>{
  const server=new WebSocketServer({host:'127.0.0.1',port:0}),peer=deferred(),online=deferred(),received=deferred(),aborted=deferred(),sent=deferred(),sendCompleted=deferred()
  t.after(()=>new Promise(resolve=>{for(const client of server.clients)client.terminate();server.close(resolve)}))

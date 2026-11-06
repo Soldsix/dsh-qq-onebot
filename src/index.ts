@@ -5,6 +5,7 @@ import { ImRuntime } from 'dsh-im-kit'
 import type {} from 'dsh-im-kit/cordis'
 import { resolveConfig, type Config } from './config.ts'
 import { OneBotTransport, type OneBotStatus } from './transport.ts'
+import { waitFor } from './waiter.ts'
 
 /** Stable plugin identity used by settings and credential ownership. */
 export const name = 'qq-onebot'
@@ -39,7 +40,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   if (!config.enabled) return
   const spec = resolveConfig(config, {}, async reference => (await ctx.credentials.resolve(credentialRef(reference)))?.value)
   if (!spec) return
-  try { await spec.accessToken() } catch (error) { throw new Error('OneBot credential lookup failed; check the configured DSH credential reference') }
+  const lifetime = new AbortController()
+  ctx.effect(() => () => lifetime.abort())
+  try {
+    const credential = await waitFor(spec.accessToken(), AbortSignal.any([lifetime.signal, AbortSignal.timeout(spec.connectTimeoutMs)]))
+    if (credential.kind === 'cancelled') throw new Error('Credential resolution did not complete')
+  } catch (error) { throw new Error('OneBot credential lookup failed; check the configured DSH credential reference') }
   const runtime = new ImRuntime()
   ctx.effect(() => () => runtime.close())
   ctx.effect(() => ctx.provide('im', runtime))
