@@ -29,6 +29,9 @@ test('the disabled bundle opens no account service and performs no credential re
 })
 
 test('a stalled credential provider cannot hold profile startup indefinitely',options,async t=>{
+ // AbortSignal.timeout is unref'ed; retain the worker like the host's live stdin.
+ const keepAlive=setTimeout(()=>{},30000)
+ t.after(()=>clearTimeout(keepAlive))
  const pending=deferred()
  const {ctx,mount}=await context(t,()=>pending.promise)
  await assert.rejects(mount(Plugin,Plugin.Config({enabled:true,accountId:'90000001',connectTimeoutMs:50})),/OneBot credential lookup failed/)
