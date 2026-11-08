@@ -36,7 +36,7 @@ Bundle 插入默认停用的 qq-onebot-transport 和独立的 qq-onebot-control 
 <a id="verify-this-package"></a>
 ## 验证本包
 
-在本仓库运行 npm run check。集成测试前先构建并打包候选。每项测试用受支持的 dsh CLI 启动全新隔离 profile 和合成回环端点，不打开用户浏览器，也不连接 QQ。显式提供独立 dsh-im-kit 0.2.0 发行包，不读取相邻源码仓库或生产 profile。
+在本仓库运行 npm run check。集成测试前先构建并打包候选。每项测试用受支持的 dsh CLI 启动全新隔离 profile 和合成回环端点，不打开用户浏览器，也不连接 QQ。显式提供独立 dsh-im-kit 0.2.1 发行包，不读取相邻源码仓库或生产 profile。
 
 ```sh
 npm pack --pack-destination artifacts

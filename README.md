@@ -36,7 +36,7 @@ The host service ctx.im publishes admitted messages and provides availability/se
 <a id="verify-this-package"></a>
 ## Verify this package
 
-Run npm run check in this repository. Build and pack the candidate before integration tests. Each test starts the supported dsh CLI with a new isolated profile and synthetic loopback endpoints; it never opens a user browser or connects to QQ. Provide the independent dsh-im-kit 0.2.0 archive explicitly; no sibling checkout or production profile is read.
+Run npm run check in this repository. Build and pack the candidate before integration tests. Each test starts the supported dsh CLI with a new isolated profile and synthetic loopback endpoints; it never opens a user browser or connects to QQ. Provide the independent dsh-im-kit 0.2.1 archive explicitly; no sibling checkout or production profile is read.
 
 ```sh
 npm pack --pack-destination artifacts

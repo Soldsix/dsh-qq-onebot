@@ -1,6 +1,6 @@
 {
   "name": "dsh-qq-onebot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Independently installable OneBot 11 messaging provider for DSH profiles.",
   "type": "module",
   "license": "MIT",
@@ -54,7 +54,7 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.1.0",
     "@deepseek-ai/schemastery": "~3.19.0",
-    "dsh-im-kit": "0.2.0",
+    "dsh-im-kit": "^0.2.1",
     "@deepseek-ai/dsh-brand": "0.2.2-rc.1",
     "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
     "@deepseek-ai/dsh-config-editor": "0.2.2-rc.1",

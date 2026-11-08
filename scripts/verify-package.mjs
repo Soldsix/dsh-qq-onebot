@@ -14,7 +14,7 @@ export function verifyManifest(manifest){
  assert.equal(manifest.engines?.dsh,'0.2.2-rc.1')
  assert.equal(manifest.peerDependencies?.['@deepseek-ai/cordis'],'~4.1.0')
  assert.equal(manifest.peerDependencies?.['@deepseek-ai/dsh-credentials'],'0.2.2-rc.1')
- assert.equal(manifest.peerDependencies?.['dsh-im-kit'],'0.2.0')
+ assert.equal(manifest.peerDependencies?.['dsh-im-kit'],'^0.2.1')
  assert.equal(manifest.exports?.['.']?.import,'./dist/index.js')
  assert.equal(manifest.exports?.['.']?.types,'./dist/index.d.ts')
  assert.equal(manifest.exports?.['./control']?.import,'./dist/control.js')

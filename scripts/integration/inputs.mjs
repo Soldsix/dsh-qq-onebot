@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto'
 export async function imKitArchive(){
  const index=process.argv.indexOf('--im-kit-archive')
  const input=index<0?process.env.DSH_IM_KIT_ARCHIVE:process.argv[index+1]
- if(!input)throw Error('Pass --im-kit-archive PATH (or DSH_IM_KIT_ARCHIVE) to the independent dsh-im-kit 0.2.0 release archive')
+ if(!input)throw Error('Pass --im-kit-archive PATH (or DSH_IM_KIT_ARCHIVE) to the independent dsh-im-kit 0.2.1 release archive')
  const path=await realpath(resolve(input))
  if(!path.endsWith('.tgz'))throw Error('The im-kit integration input must be a release .tgz archive')
  return path
