@@ -54,7 +54,6 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.1.0",
     "@deepseek-ai/schemastery": "~3.19.0",
-    "dsh-im-kit": "^0.2.1",
     "@deepseek-ai/dsh-brand": "0.2.2-rc.1",
     "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
     "@deepseek-ai/dsh-config-editor": "0.2.2-rc.1",
@@ -62,7 +61,8 @@
   },
   "dependencies": {
     "ws": "8.22.1",
-    "zod": "4.6.6"
+    "zod": "4.6.6",
+    "dsh-im-kit": "https://github.com/Soldsix/dsh-im-kit/releases/download/v0.2.1/dsh-im-kit-0.2.1.tgz"
   },
   "devDependencies": {
     "typescript": "5.9.3",
@@ -112,5 +112,20 @@
     "test:control": "node scripts/integration/test-onebot-dsh.mjs --control",
     "test:web": "node scripts/integration/test-onebot-web.mjs",
     "prepack": "npm run build"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Soldsix/dsh-qq-onebot.git"
+  },
+  "homepage": "https://github.com/Soldsix/dsh-qq-onebot#readme",
+  "bugs": {
+    "url": "https://github.com/Soldsix/dsh-qq-onebot/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "onebot",
+    "qq",
+    "cordis"
+  ]
 }

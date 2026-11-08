@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This development bundle contributes one selected OneBot 11 account and a native Web configuration page. It preserves mentions, quotes, share cards and media references, checks account health, and classifies receipts without retrying uncertain actions. Its owner page keeps drafts, saved revisions and live connection evidence separate. It adds no model, persona or automatic reply. This is not a public release.
+This preview bundle contributes one selected OneBot 11 account and a native Web configuration page. It preserves mentions, quotes, share cards and media references, checks account health, and classifies receipts without retrying uncertain actions. Its owner page keeps drafts, saved revisions and live connection evidence separate. It adds no model, persona or automatic reply. An existing OneBot service is required.
 
 ## Table of Contents
 
@@ -27,6 +27,12 @@ The bundle inserts qq-onebot-transport, disabled by default, and a separate qq-o
 
 Forward mode uses an authenticated universal ws connection on loopback or wss remotely. Reverse mode listens only on loopback and accepts one authenticated universal connection. Separate API/Event sockets, HTTP transport and OneBot 12 are not supported.
 
+For an existing DSH profile, install the release archive; its messaging-library dependency is fetched automatically:
+
+```sh
+dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.2.1/dsh-qq-onebot-0.2.1.tgz
+```
+
 After installing the bundle with dsh plugin --profile PROFILE add ARCHIVE, open Plugins → dsh-qq-onebot in the native Web app. The page edits connection, access and advanced limits. Saving uses ConfigEditor's validated, transactional profile edit; it preserves untouched expressions and rejects a stale revision. Activation failure rolls back through the Host editor. Reconnection uses saved settings and never resends messages.
 
 The controller survives transport disable/reload and admits only the trusted Host owner, independently of generic Remote policy. It checks credential presence without reading secret values. The status panel distinguishes an active entry, socket connection, verified account and fresh online evidence; saving alone does not prove QQ is online.
@@ -36,13 +42,13 @@ The host service ctx.im publishes admitted messages and provides availability/se
 <a id="verify-this-package"></a>
 ## Verify this package
 
-Run npm run check in this repository. Build and pack the candidate before integration tests. Each test starts the supported dsh CLI with a new isolated profile and synthetic loopback endpoints; it never opens a user browser or connects to QQ. Provide the independent dsh-im-kit 0.2.1 archive explicitly; no sibling checkout or production profile is read.
+Run npm run check in this repository. Build and pack the candidate before integration tests. Each test starts the supported dsh CLI with a new isolated profile and synthetic loopback endpoints; it never opens a user browser or connects to QQ. The package installs the pinned dsh-im-kit 0.2.1 public GitHub archive automatically; no prior library installation is required. Integration tests download that archive as installation evidence, or accept --im-kit-archive for an explicit test input. No sibling checkout or production profile is read.
 
 ```sh
 npm pack --pack-destination artifacts
-npm run test:dsh -- --im-kit-archive PATH_TO_IM_KIT_TGZ
-npm run test:control -- --im-kit-archive PATH_TO_IM_KIT_TGZ
-npm run test:web -- --im-kit-archive PATH_TO_IM_KIT_TGZ
+npm run test:dsh
+npm run test:control
+npm run test:web
 ```
 
 The Web test requires Playwright's matching Chromium headless shell. Set PLAYWRIGHT_BROWSERS_PATH to a test-only directory and run node node_modules/playwright/cli.js install chromium --only-shell there before test:web. The test uses a fresh browser profile; output goes to .test-artifacts. The source repository contains all three harnesses and probes.
@@ -73,7 +79,7 @@ Indirect. This bundle defines no model tools, changes no prompt and starts no mo
 - Muting uses available member timestamps and observed ban notices; a protocol that omits mute evidence cannot prove every pre-existing whole-group mute.
 - Files and merged-forward output require later explicit capability adapters; they are rejected rather than disguised as text or images.
 - No protocol client, credentials, private persona, user archive or image collection is included.
-- Native Web checks use isolated synthetic endpoints. Real QQ, model API, desktop-client and Linux verification remain outside this candidate's evidence.
+- Native Web checks use isolated synthetic endpoints. Real QQ, model API and desktop-client verification require separate authorized checks.
 
 ## Further Exploration
 
@@ -82,4 +88,4 @@ Indirect. This bundle defines no model tools, changes no prompt and starts no mo
 
 ## Dev Note
 
-Development candidate. Production deployments are unchanged.
+Preview release. Its declared message transport and native controls are verified separately from QQ client delivery.

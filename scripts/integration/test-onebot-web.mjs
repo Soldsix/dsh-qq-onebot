@@ -4,7 +4,7 @@ import {spawn} from 'node:child_process'
 import {once} from 'node:events'
 import {createServer} from 'node:http'
 import {mkdtemp,mkdir,readFile,writeFile,realpath} from 'node:fs/promises'
-import {join,relative} from 'node:path'
+import {join,relative,delimiter} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {createRequire} from 'node:module'
 import {prepareQaProfile} from './qa-profile-dependencies.mjs'
@@ -28,7 +28,7 @@ const modelHttp=createServer((request,response)=>{
  modelRequests++;response.statusCode=500;response.end(JSON.stringify({error:'No model execution is permitted in this UI test'}))
 })
 modelHttp.listen(0,'127.0.0.1');await once(modelHttp,'listening');modelHttp.unref()
-const env={...process.env,DSH_HOME:home,DSH_SYSTEM_PROMPT:'Isolated UI fixture. No model requests.',DEEPSEEK_API_KEY:'isolated-no-model-call',DEEPSEEK_BASE_URL:'http://127.0.0.1:'+modelHttp.address().port+'/v1',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token'}
+const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key))),DSH_HOME:home,DSH_SYSTEM_PROMPT:'Isolated UI fixture. No model requests.',DEEPSEEK_API_KEY:'isolated-no-model-call',DEEPSEEK_BASE_URL:'http://127.0.0.1:'+modelHttp.address().port+'/v1',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token'}
 const records=[]
 async function run(command,args,cwd){
  const child=spawn(command,args,{cwd,env,signal:AbortSignal.timeout(120000),windowsHide:true,stdio:['ignore','pipe','pipe']})
@@ -41,13 +41,13 @@ async function run(command,args,cwd){
 }
 await run(process.execPath,[dsh,'--profile',profile,'--from-default-profile','web','--dump-config'],area)
 await prepareQaProfile(workspace,hostRoot,profileRoot)
-await writeFile(join(profileRoot,'.npmrc'),'store-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
+await writeFile(join(profileRoot,'.npmrc'),'package-import-method=copy\nstore-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
 let pnpm
-findPnpm: for(const dir of (process.env.PATH??'').split(';'))for(const candidate of [join(dir,'pnpm.cjs'),join(dir,'node_modules','pnpm','bin','pnpm.cjs'),join(dir,'node_modules','corepack','dist','pnpm.js')]){
+findPnpm: for(const dir of (process.env.PATH??'').split(delimiter))for(const candidate of [join(dir,'pnpm.cjs'),join(dir,'node_modules','pnpm','bin','pnpm.cjs'),join(dir,'node_modules','corepack','dist','pnpm.js')]){
  try{await realpath(candidate);pnpm=candidate;break findPnpm}catch(error){if(error.code!=='ENOENT')throw error}
 }
 assert.ok(pnpm,'A local pnpm installation is required')
-await run(process.execPath,[pnpm,'add',libraryArchive,'@deepseek-ai/cordis@4.1.0','@deepseek-ai/schemastery@3.19.0','@deepseek-ai/dsh-credentials@0.2.2-rc.1','@deepseek-ai/dsh-config-editor@0.2.2-rc.1','@deepseek-ai/dsh-typert-protocol@0.2.2-rc.1','--ignore-scripts'],profileRoot)
+await run(process.execPath,[pnpm,'add','@deepseek-ai/cordis@4.1.0','@deepseek-ai/schemastery@3.19.0','@deepseek-ai/dsh-credentials@0.2.2-rc.1','@deepseek-ai/dsh-config-editor@0.2.2-rc.1','@deepseek-ai/dsh-typert-protocol@0.2.2-rc.1','--ignore-scripts'],profileRoot)
 await run(process.execPath,[dsh,'plugin','--profile',profile,'add',pluginArchive],area)
 await writeFile(join(profileRoot,'cordis.patch.yml'),yaml.stringify([{id:'qq-onebot-control',config:{statusRefreshMs:250}}]))
 const server=new WebSocketServer({host:'127.0.0.1',port:0})

@@ -1,12 +1,20 @@
 /** Require explicit local release inputs; integration tests never inspect production profiles. */
-import {realpath,readFile,writeFile,mkdir,copyFile} from 'node:fs/promises'
+import {realpath,readFile,writeFile,mkdir,mkdtemp,copyFile} from 'node:fs/promises'
 import {resolve,join,basename} from 'node:path'
 import {createHash} from 'node:crypto'
-/** Return the deliberately provided im-kit archive and reject a missing fixture. */
+import {fileURLToPath} from 'node:url'
+/** Return an explicit test archive, or download the pinned public dependency for installation evidence. */
 export async function imKitArchive(){
  const index=process.argv.indexOf('--im-kit-archive')
  const input=index<0?process.env.DSH_IM_KIT_ARCHIVE:process.argv[index+1]
- if(!input)throw Error('Pass --im-kit-archive PATH (or DSH_IM_KIT_ARCHIVE) to the independent dsh-im-kit 0.2.1 release archive')
+ if(!input){
+  const root=fileURLToPath(new URL('../../',import.meta.url)),manifest=JSON.parse(await readFile(join(root,'package.json'),'utf8'))
+  const url=manifest.dependencies['dsh-im-kit'],directory=join(root,'.test-artifacts','public-inputs')
+  await mkdir(directory,{recursive:true});const area=await mkdtemp(join(directory,'kit-'))
+  const response=await fetch(url,{signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error('Public messaging-kit download failed: '+response.status)
+  const data=Buffer.from(await response.arrayBuffer()),target=join(area,'dsh-im-kit-0.2.1.tgz')
+  await writeFile(target,data);return target
+ }
  const path=await realpath(resolve(input))
  if(!path.endsWith('.tgz'))throw Error('The im-kit integration input must be a release .tgz archive')
  return path

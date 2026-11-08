@@ -6,7 +6,7 @@ import {verifyManifest,verifyPair,verifyFiles} from '../scripts/verify-package.m
 test('publication checks reject wrong bundle kinds, private paths and incompatible peers',async()=>{
  const valid=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'))
  verifyManifest(valid)
- for(const modify of [p=>{delete p.dsh},p=>{p.bin='app.js'},p=>{p.dependencies.private='file:F:/private'},p=>{p.engines.dsh='*'},p=>{p.peerDependencies['@deepseek-ai/cordis']='~4.0.0'},p=>{p.exports['.'].types='./src/index.ts'}]){
+ for(const modify of [p=>{delete p.dsh},p=>{delete p.dependencies['dsh-im-kit']},p=>{p.dependencies['dsh-im-kit']='^0.2.1'},p=>{p.bin='app.js'},p=>{p.dependencies.private='file:F:/private'},p=>{p.engines.dsh='*'},p=>{p.peerDependencies['@deepseek-ai/cordis']='~4.0.0'},p=>{p.exports['.'].types='./src/index.ts'}]){
   const copy=structuredClone(valid);modify(copy);assert.throws(()=>verifyManifest(copy))
  }
 })
