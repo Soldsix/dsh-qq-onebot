@@ -111,7 +111,7 @@
     "test:dsh": "node scripts/integration/test-onebot-dsh.mjs",
     "test:control": "node scripts/integration/test-onebot-dsh.mjs --control",
     "test:web": "node scripts/integration/test-onebot-web.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build && node scripts/prepare-pack.mjs"
   },
   "repository": {
     "type": "git",
