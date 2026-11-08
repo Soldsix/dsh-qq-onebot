@@ -9,6 +9,7 @@ import {join,dirname,relative,sep,delimiter} from 'node:path'
 import {createRequire} from 'node:module'
 import {prepareQaProfile} from './qa-profile-dependencies.mjs'
 import {imKitArchive,stageInputs} from './inputs.mjs'
+import {pnpmScript} from './pnpm.mjs'
 
 const workspace=fileURLToPath(new URL('../../',import.meta.url))
 const hostRoot=workspace
@@ -24,7 +25,7 @@ await mkdir(artifacts,{recursive:true})
 const area=await mkdtemp(join(artifacts,'dsh-install-'))
 const archives=await stageInputs(area,sources)
 const home=join(area,'home'),profile='transport-qa',profileRoot=join(home,'profiles',profile)
-const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key))),DSH_HOME:home,DEEPSEEK_API_KEY:'isolated-no-model-call',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token',DSH_SYSTEM_PROMPT:'Isolated test with no model calls.'}
+const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key)&&key.toUpperCase()!=='PATH')),PATH:join(workspace,'node_modules','.bin')+delimiter+(process.env.PATH??process.env.Path??''),DSH_PRIMARY_RUNTIME:'',DSH_HOME:home,DEEPSEEK_API_KEY:'isolated-no-model-call',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token',DSH_SYSTEM_PROMPT:'Isolated test with no model calls.'}
 const records=[]
 async function run(command,args,cwd){
  const lifetime=new AbortController(),deadline=AbortSignal.timeout(120000)
@@ -43,10 +44,7 @@ async function run(command,args,cwd){
 const composition=await run(process.execPath,[dsh,'--profile',profile,'--from-default-profile','sdk','--dump-config'],area)
 await prepareQaProfile(workspace,hostRoot,profileRoot)
 await writeFile(join(profileRoot,'.npmrc'),'package-import-method=copy\nstore-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
-const pnpmCandidates=(process.env.PATH??'').split(delimiter).flatMap(dir=>[join(dir,'pnpm.cjs'),join(dir,'node_modules','pnpm','bin','pnpm.cjs'),join(dir,'node_modules','corepack','dist','pnpm.js')])
-let pnpm
-for(const candidate of pnpmCandidates){try{await realpath(candidate);pnpm=candidate;break}catch(error){if(error.code!=='ENOENT')throw error}}
-if(!pnpm)throw Error('The test requires a pnpm.cjs installation on PATH')
+const pnpm=await pnpmScript(workspace)
 await run(process.execPath,[pnpm,'add','@deepseek-ai/cordis@4.1.0','@deepseek-ai/schemastery@3.19.0','@deepseek-ai/dsh-credentials@0.2.2-rc.1','@deepseek-ai/dsh-config-editor@0.2.2-rc.1','@deepseek-ai/dsh-typert-protocol@0.2.2-rc.1','--ignore-scripts'],profileRoot)
 await run(process.execPath,[dsh,'plugin','--profile',profile,'add',archives[1]],area)
 const resolveInstalled=createRequire(join(profileRoot,'package.json'))
