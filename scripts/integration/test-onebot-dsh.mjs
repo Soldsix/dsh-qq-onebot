@@ -25,7 +25,8 @@ await mkdir(artifacts,{recursive:true})
 const area=await mkdtemp(join(artifacts,'dsh-install-'))
 const archives=await stageInputs(area,sources)
 const home=join(area,'home'),profile='transport-qa',profileRoot=join(home,'profiles',profile)
-const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key)&&key.toUpperCase()!=='PATH')),PATH:join(workspace,'node_modules','.bin')+delimiter+(process.env.PATH??process.env.Path??''),DSH_PRIMARY_RUNTIME:'',DSH_HOME:home,DEEPSEEK_API_KEY:'isolated-no-model-call',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token',DSH_SYSTEM_PROMPT:'Isolated test with no model calls.'}
+await mkdir(join(area,'temp'),{recursive:true})
+const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key)&&key.toUpperCase()!=='PATH')),PATH:join(workspace,'node_modules','.bin')+delimiter+(process.env.PATH??process.env.Path??''),TEMP:join(area,'temp'),TMP:join(area,'temp'),TMPDIR:join(area,'temp'),NPM_CONFIG_CACHE:join(workspace,'.npm-cache'),DSH_PRIMARY_RUNTIME:'',DSH_HOME:home,DEEPSEEK_API_KEY:'isolated-no-model-call',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token',DSH_SYSTEM_PROMPT:'Isolated test with no model calls.'}
 const records=[]
 async function run(command,args,cwd){
  const lifetime=new AbortController(),deadline=AbortSignal.timeout(120000)
@@ -42,18 +43,18 @@ async function run(command,args,cwd){
  return stdout
 }
 const composition=await run(process.execPath,[dsh,'--profile',profile,'--from-default-profile','sdk','--dump-config'],area)
-await prepareQaProfile(workspace,hostRoot,profileRoot)
-await writeFile(join(profileRoot,'.npmrc'),'package-import-method=copy\nstore-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
+await prepareQaProfile(workspace,hostRoot,profileRoot,archives[0])
+await writeFile(join(profileRoot,'.npmrc'),'package-import-method=hardlink\nstore-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
 const pnpm=await pnpmScript(workspace)
 await run(process.execPath,[pnpm,'add','@deepseek-ai/cordis@4.1.0','@deepseek-ai/schemastery@3.19.0','@deepseek-ai/dsh-credentials@0.2.2-rc.1','@deepseek-ai/dsh-config-editor@0.2.2-rc.1','@deepseek-ai/dsh-typert-protocol@0.2.2-rc.1','--ignore-scripts'],profileRoot)
-await run(process.execPath,[dsh,'plugin','--profile',profile,'add',archives[1]],area)
+await run(process.execPath,[dsh,'plugin','--profile',profile,'add',archives[1],'--ignore-scripts'],area)
 const resolveInstalled=createRequire(join(profileRoot,'package.json'))
 const pluginManifest=resolveInstalled.resolve('dsh-qq-onebot/package.json')
 const pluginRequire=createRequire(pluginManifest)
 const dependencies=[]
 for(const name of ['dsh-im-kit','@deepseek-ai/cordis','@deepseek-ai/schemastery','@deepseek-ai/dsh-credentials','@deepseek-ai/dsh-config-editor','@deepseek-ai/dsh-typert-protocol','ws']){
  const path=await realpath(pluginRequire.resolve(name+'/package.json'))
- const location=relative(workspace,path)
+ const location=relative(profileRoot,path)
  assert.ok(!location.startsWith('..'+sep)&&!location.includes('..'+sep),'Dependency escaped isolated plugin workspace: '+name)
  dependencies.push({name,version:JSON.parse(await readFile(path,'utf8')).version,path:location})
 }
@@ -65,7 +66,8 @@ server.on('connection',(peer,request)=>{
  peers.push(peer)
  peer.on('message',raw=>{
   const frame=JSON.parse(raw.toString());requests.push(frame)
-  const data=frame.action==='get_login_info'?{user_id:90000001}:frame.action==='get_status'?{online:true,good:true}:frame.action==='get_group_member_info'?{user_id:90000001,role:'member',shut_up_timestamp:0}:{message_id:501}
+  const content=frame.params?.id==='native-root'?[{type:'text',data:{text:'NATIVE_FORWARD_ORIGINAL'}},{type:'reply',data:{id:'-44'}},{type:'image',data:{url:'https://example.invalid/original.gif'}},{type:'forward',data:{id:'native-child'}}]:[{type:'text',data:{text:'NATIVE_NESTED_ORIGINAL'}}]
+  const data=frame.action==='get_forward_msg'?{messages:[{sender:{user_id:90000001,nickname:'claimed only'},group_id:99999999,content}]}:frame.action==='get_login_info'?{user_id:90000001}:frame.action==='get_status'?{online:true,good:true}:frame.action==='get_group_member_info'?{user_id:90000001,role:'member',shut_up_timestamp:0}:{message_id:501}
   peer.send(JSON.stringify({status:'ok',retcode:0,data,echo:frame.echo}))
  })
 })
@@ -102,11 +104,11 @@ try{
  const ready=await waitFile(readyPath)
  if(!controlTest){
   assert.equal(ready.verified,true)
-  peers[0].send(JSON.stringify({post_type:'message',message_type:'group',time:1000,self_id:90000001,user_id:90000002,group_id:90000100,message_id:500,message:[{type:'at',data:{qq:'90000001'}},{type:'text',data:{text:'isolated test'}}]}))
+  peers[0].send(JSON.stringify({post_type:'message',message_type:'group',time:1000,self_id:90000001,user_id:90000002,group_id:90000100,message_id:500,message:[{type:'at',data:{qq:'90000001'}},{type:'text',data:{text:'isolated test'}},{type:'forward',data:{id:'native-root'}}]}))
  }
  result=await waitFile(resultPath)
  if(controlTest){assert.equal(result.passed,true);assert.equal(requests.filter(r=>r.action.startsWith('send_')).length,0)}
- else{assert.equal(result.received,true);assert.equal(result.directedToBot,true);assert.deepEqual(result.receipt,{status:'accepted',messageIds:['501']});assert.equal(requests.filter(r=>r.action==='send_group_msg').length,1)}
+ else{assert.equal(result.received,true);assert.equal(result.directedToBot,true);assert.deepEqual(result.receipt,{status:'accepted',messageIds:['501']});assert.equal(requests.filter(r=>r.action==='send_group_msg').length,1);assert.equal(requests.filter(r=>r.action==='get_forward_msg').length,2);assert.equal(result.forwardReads,true);assert.equal(result.forwardScopes,true);assert.equal(result.forwardMedia,true)}
  child.stdin.write(JSON.stringify({jsonrpc:'2.0',id:1,method:'shutdown',params:{}})+'\n')
  const stopped=await Promise.race([exit,new Promise((_,reject)=>lifetime.addEventListener('abort',()=>reject(lifetime.reason),{once:true}))])
  assert.deepEqual(stopped,{code:0,signal:null})

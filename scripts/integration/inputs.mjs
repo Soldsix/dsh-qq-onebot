@@ -3,6 +3,8 @@ import {realpath,readFile,writeFile,mkdir,mkdtemp,copyFile} from 'node:fs/promis
 import {resolve,join,basename} from 'node:path'
 import {createHash} from 'node:crypto'
 import {fileURLToPath} from 'node:url'
+import {imKitInput} from '../release-spec.mjs'
+import assert from 'node:assert/strict'
 /** Return an explicit test archive, or download the pinned public dependency for installation evidence. */
 export async function imKitArchive(){
  const index=process.argv.indexOf('--im-kit-archive')
@@ -12,11 +14,12 @@ export async function imKitArchive(){
   const url=manifest.dependencies['dsh-im-kit'],directory=join(root,'.test-artifacts','public-inputs')
   await mkdir(directory,{recursive:true});const area=await mkdtemp(join(directory,'kit-'))
   const response=await fetch(url,{signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error('Public messaging-kit download failed: '+response.status)
-  const data=Buffer.from(await response.arrayBuffer()),target=join(area,'dsh-im-kit-0.2.1.tgz')
+  const data=Buffer.from(await response.arrayBuffer()),target=join(area,'dsh-im-kit-0.2.1.tgz');assert.equal(createHash('sha256').update(data).digest('hex'),imKitInput.sha256,'Public input integrity differs')
   await writeFile(target,data);return target
  }
  const path=await realpath(resolve(input))
  if(!path.endsWith('.tgz'))throw Error('The im-kit integration input must be a release .tgz archive')
+ assert.equal(createHash('sha256').update(await readFile(path)).digest('hex'),imKitInput.sha256,'Explicit input integrity differs')
  return path
 }
 /** Copy release inputs into the run and record hashes before profile installation. */

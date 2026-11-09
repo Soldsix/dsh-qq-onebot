@@ -1,6 +1,6 @@
 {
   "name": "dsh-qq-onebot",
-  "version": "0.2.1",
+  "version": "0.3.0-development",
   "description": "Independently installable OneBot 11 messaging provider for DSH profiles.",
   "type": "module",
   "license": "MIT",
@@ -89,7 +89,7 @@
     "esbuild": "0.28.2",
     "immer": "10.2.0",
     "playwright": "1.65.0",
-    "pnpm": "^10.33.2",
+    "pnpm": "10.33.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "typescript": "5.9.3",
@@ -112,7 +112,8 @@
     "test:dsh": "node scripts/integration/test-onebot-dsh.mjs",
     "test:control": "node scripts/integration/test-onebot-dsh.mjs --control",
     "test:web": "node scripts/integration/test-onebot-web.mjs",
-    "prepack": "npm run build && node scripts/prepare-pack.mjs"
+    "prepack": "npm run build && node scripts/prepare-pack.mjs",
+    "test:consumer": "node scripts/integration/test-consumer.mjs"
   },
   "repository": {
     "type": "git",

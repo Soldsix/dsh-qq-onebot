@@ -126,10 +126,21 @@ export function parseMessage(value: unknown, spec: Spec, receivedAt: number, all
   const scope: ConversationScope = { account: spec.account, kind: value.message_type, peerId: identifier('im.peer', peer) }
   if (!allowsScope(scope, spec)) return null
   if (typeof value.time !== 'number' || !Number.isFinite(value.time) || value.time < 0 || value.time > Number.MAX_SAFE_INTEGER / 1000) throw new Error('invalid-message-time')
+  const {parts,media,directed}=parseContent(value.message,scope,spec,allocate)
+  return {
+    raw: value, media,
+    message: { scope, messageId: identifier('im.message', id), senderId: identifier('im.user', sender), sentAt: value.time * 1000, receivedAt, parts, directedToBot: directed },
+  }
+}
+
+/** Normalized segments and host-only locations; mention flags do not authenticate forwarded speakers. */
+export interface ParsedContent{readonly parts:readonly MessagePart[];readonly media:ParsedMessage['media'];readonly directed:boolean}
+/** @param value - wire message array or CQ text. @param scope - host-bound outer destination. @param spec - transport limits and expected account. @param allocate - host attachment allocator. @returns normalized content without changing the originating sender or destination. */
+export function parseContent(value:unknown,scope:ConversationScope,spec:Spec,allocate:()=>AttachmentId):ParsedContent{
   const parts: MessagePart[] = [], media: { id: AttachmentId; source: MediaSource }[] = []
   let textChars = 0
   let directed = scope.kind === 'private'
-  for (const segment of parseSegments(value.message, spec.maxSegments)) {
+  for (const segment of parseSegments(value, spec.maxSegments)) {
     const d = segment.data
     switch (segment.type) {
       case 'text': {
@@ -186,8 +197,5 @@ export function parseMessage(value: unknown, spec: Spec, receivedAt: number, all
         parts.push({ type: 'unsupported', segmentType: segment.type })
     }
   }
-  return {
-    raw: value, media,
-    message: { scope, messageId: identifier('im.message', id), senderId: identifier('im.user', sender), sentAt: value.time * 1000, receivedAt, parts, directedToBot: directed },
-  }
+  return{parts,media,directed}
 }

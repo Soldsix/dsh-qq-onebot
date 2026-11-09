@@ -21,7 +21,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-候选目标是 DSH 0.2.2-rc.1、Cordis 4.1、Node 22.19 或 24。这是 bundle 层，不是应用程序入口。profile 提供凭据与 ConfigEditor；原生 Web profile 还提供 Typert 注册表、网关、远程访问和插件管理。OneBot 11 端点需已存在；本包不启动或登录 QQ。
+候选目标是 DSH 0.2.2-rc.1 与 Cordis 4.1，其公开 Host 要求 Node >=24.9.0；Node 22 测试仅作兼容性观测。这是 bundle 层，不是应用程序入口。profile 提供凭据与 ConfigEditor；原生 Web profile 还提供 Typert 注册表、网关、远程访问和插件管理。OneBot 11 端点需已存在；本包不启动或登录 QQ。
 
 Bundle 插入默认停用的 qq-onebot-transport 和独立的 qq-onebot-control 条目。启用时必须指定准确账号及允许群。私聊需开启 allowPrivate；privateUsers 留空允许所有人，填写后限制为名单内用户。accessTokenEnv 是 DSH 凭据引用，不是密钥原文。每次新握手会重新解析该引用。
 
@@ -30,7 +30,7 @@ Bundle 插入默认停用的 qq-onebot-transport 和独立的 qq-onebot-control 
 在已有的 DSH profile 中安装发行包，共用消息库会自动取得：
 
 ```sh
-dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.2.1/dsh-qq-onebot-0.2.1.tgz
+dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.3.0-development/dsh-qq-onebot-0.3.0-development.tgz
 ```
 
 通过 dsh plugin --profile PROFILE add ARCHIVE 安装后，在原生 Web 应用打开“插件 → dsh-qq-onebot”，可编辑连接、访问与高级限制。保存使用 ConfigEditor 的校验与事务编辑，保留未改动的表达式，拒绝过期版本；启用失败由宿主编辑器回滚。重连只使用已保存配置，不重发消息。
@@ -38,6 +38,16 @@ dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/rel
 控制器在通道停用或重载后继续存在；即使通用 Remote 策略放行，也只允许可信宿主所有者操作。它只检查凭据是否配置，不读取密钥值。状态面板分别显示条目激活、连接、账号核验及有效在线证据；保存成功不能证明 QQ 已在线。
 
 宿主服务 ctx.im 发布已接纳消息，并提供可用性和发送操作。ctx.qqOnebot 提供仅宿主使用的来源查询、原始消息快照和限定目标的出站字节引用。独立消费者决定是否回复，并负责持久请求标识。
+
+### 范围绑定的转发读取
+
+Host 读者可调用 ctx.qqOnebot.readForward(scope, rootMessageId, resourceId, signal)，参数必须来自已接纳且仍保留的外层消息。只有外层消息或已读取子节点引入的资源才能请求，子节点返回的群号不能改变范围。结果为 resolved 或带稳定原因的 failed；转发昵称与账号标为 claimedSender，不代表真实认证，不触发新入站消息、指令或管理员授权。
+
+读取保留节点顺序、普通引用 ID、内联节点及原始响应；仅含引用 ID 的节点保留 referenceMessageId，不进行全局 get_msg 查询。同一外层范围及资源的并行读取共享一次请求，取消一个等待者不影响其他人，最后一个等待者离开后停止请求。缓存结果为独立副本，断线取消旧代请求，旧响应不能覆盖新代结果，不自动重试。
+
+maxForwardNodes、maxForwardResources、maxForwardDepth 和 maxForwardCalls 可在原生高级设置调整；总缓存还受 maxReferenceBytes 限制。超限拒绝完整响应，不静默截断、不留部分媒体授权。成功读取刷新外层引用的保留时间，缓存命中不续期。转发媒体通过原外层范围的 mediaSource 获取来源；这不代表已下载原件、识图或完成多轮网络展开。
+
+解析覆盖 [OneBot 标准节点](https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_forward_msg-获取合并转发消息)与 [NapCat 返回节点](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/GetForwardMsg.ts)，存在矛盾的非空内容字段明确拒绝。原件下载、模型可见渲染、跨资源递归策略与合并发送由后续独立能力完成；见[升级指南](docs/upgrade-guide/v0.2.1/forward-reads/guide.zh.md)。
 
 <a id="verify-this-package"></a>
 ## 验证本包
@@ -49,6 +59,7 @@ npm pack --pack-destination artifacts
 npm run test:dsh
 npm run test:control
 npm run test:web
+npm run test:consumer -- --im-kit-archive PATH_TO_VERIFIED_LIBRARY_TGZ
 ```
 
 Web 测试需安装 Playwright 对应的 Chromium headless shell；将 PLAYWRIGHT_BROWSERS_PATH 指向测试专用目录，先运行 node node_modules/playwright/cli.js install chromium --only-shell，再执行 test:web。测试使用全新浏览器资料，结果保存在 .test-artifacts；本源码仓库包含全部三种测试入口和探针。

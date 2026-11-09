@@ -35,6 +35,8 @@ export const en = {
   'field.shutdownTimeoutMs': 'Shutdown timeout (ms)', 'field.membershipCacheMs': 'Member cache lifetime (ms)', 'field.maxPendingActions': 'Maximum pending actions',
   'field.maxFrameBytes': 'Maximum frame bytes', 'field.maxBufferedBytes': 'Maximum socket buffer bytes', 'field.maxSegments': 'Maximum message segments', 'field.maxTextChars': 'Maximum text characters',
   'field.maxReferences': 'Maximum message references', 'field.maxPendingMessages': 'Maximum pending messages', 'field.maxQueuedMessageBytes': 'Maximum queued message bytes',
+  'field.maxForwardNodes': 'Maximum forward nodes per root', 'field.maxForwardResources': 'Maximum forward resources per root', 'field.maxForwardDepth': 'Maximum inline forward depth',
+  'field.maxForwardCalls': 'Maximum concurrent forward reads',
   'field.maxReferenceBytes': 'Maximum reference bytes', 'field.maxMediaBytes': 'Maximum bytes per outgoing asset', 'field.maxStoredMediaBytes': 'Maximum stored asset bytes', 'field.referenceTtlMs': 'Reference lifetime (ms)',
 } as const
 
@@ -76,5 +78,7 @@ export const zh: Record<LocaleKey, string> = {
   'field.shutdownTimeoutMs': '关闭等待上限（毫秒）', 'field.membershipCacheMs': '群成员缓存有效期（毫秒）', 'field.maxPendingActions': '最大等待操作数',
   'field.maxFrameBytes': '最大消息帧字节数', 'field.maxBufferedBytes': '最大连接缓冲字节数', 'field.maxSegments': '最大消息段数', 'field.maxTextChars': '最大文字字符数',
   'field.maxReferences': '最大消息引用数', 'field.maxPendingMessages': '最大待处理消息数', 'field.maxQueuedMessageBytes': '最大消息队列字节数',
+  'field.maxForwardNodes': '每条外层消息的转发节点上限', 'field.maxForwardResources': '每条外层消息的转发资源上限', 'field.maxForwardDepth': '内联转发深度上限',
+  'field.maxForwardCalls': '并行转发读取上限',
   'field.maxReferenceBytes': '最大引用字节数', 'field.maxMediaBytes': '单个出站素材最大字节数', 'field.maxStoredMediaBytes': '出站素材总字节上限', 'field.referenceTtlMs': '引用有效期（毫秒）',
 }

@@ -1,5 +1,8 @@
 name: Verify OneBot bundle
-on: [push, pull_request, workflow_dispatch]
+on:
+  - push
+  - pull_request
+  - workflow_dispatch
 permissions:
   contents: read
 jobs:
@@ -8,8 +11,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: ['22.19.0', '24.x']
+        os:
+          - ubuntu-latest
+          - windows-latest
+        node:
+          - 22.19.0
+          - 24.x
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -19,15 +26,32 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+      - run: node scripts/release-inputs.mjs --seed-npm-cache
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
       - run: npm pack --pack-destination artifacts
+      - if: matrix.node == '24.x'
+        run: npm run test:consumer -- --im-kit-archive .test-artifacts/release-inputs/dsh-im-kit-0.2.1.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-${{ github.job }}-${{ matrix.os }}-${{ matrix.node }}
+          path: |-
+            .test-artifacts/**/installation.json
+            .test-artifacts/**/commands.json
+            .test-artifacts/**/result.json
+          if-no-files-found: ignore
+          retention-days: 7
   native:
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os:
+          - ubuntu-latest
+          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -35,12 +59,25 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '24.x'
+          node-version: 24.x
           cache: npm
+      - run: node scripts/release-inputs.mjs --seed-npm-cache
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm pack --pack-destination artifacts
-      - run: npm run test:dsh
-      - run: npm run test:control
+      - run: npm run test:dsh -- --im-kit-archive .test-artifacts/release-inputs/dsh-im-kit-0.2.1.tgz
+      - run: npm run test:control -- --im-kit-archive .test-artifacts/release-inputs/dsh-im-kit-0.2.1.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-${{ github.job }}-${{ matrix.os }}-${{ matrix.node }}
+          path: |-
+            .test-artifacts/**/installation.json
+            .test-artifacts/**/commands.json
+            .test-artifacts/**/result.json
+          if-no-files-found: ignore
+          retention-days: 7
   web:
     timeout-minutes: 20
     runs-on: ubuntu-latest
@@ -52,9 +89,22 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '24.x'
+          node-version: 24.x
           cache: npm
+      - run: node scripts/release-inputs.mjs --seed-npm-cache
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node node_modules/playwright/cli.js install --with-deps chromium --only-shell
       - run: npm pack --pack-destination artifacts
-      - run: npm run test:web
+      - run: npm run test:web -- --im-kit-archive .test-artifacts/release-inputs/dsh-im-kit-0.2.1.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-${{ github.job }}-${{ matrix.os }}-${{ matrix.node }}
+          path: |-
+            .test-artifacts/**/installation.json
+            .test-artifacts/**/commands.json
+            .test-artifacts/**/result.json
+          if-no-files-found: ignore
+          retention-days: 7

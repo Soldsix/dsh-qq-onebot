@@ -12,6 +12,8 @@ const config = z.strictObject({
   onlineStaleMs: integer, reconnectMinMs: integer, reconnectMaxMs: integer, shutdownTimeoutMs: integer,
   membershipCacheMs: integer, maxPendingActions: integer, maxFrameBytes: integer, maxBufferedBytes: integer,
   maxSegments: integer, maxTextChars: integer, maxReferences: integer, maxPendingMessages: integer,
+  maxForwardNodes: integer, maxForwardResources: integer, maxForwardDepth: integer,
+  maxForwardCalls: integer,
   maxQueuedMessageBytes: integer, maxReferenceBytes: integer, maxMediaBytes: integer, maxStoredMediaBytes: integer,
   referenceTtlMs: integer,
 } satisfies { [Key in keyof Config]: z.ZodMiniType<Config[Key]> })

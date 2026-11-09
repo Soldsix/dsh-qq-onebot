@@ -29,7 +29,8 @@ const modelHttp=createServer((request,response)=>{
  modelRequests++;response.statusCode=500;response.end(JSON.stringify({error:'No model execution is permitted in this UI test'}))
 })
 modelHttp.listen(0,'127.0.0.1');await once(modelHttp,'listening');modelHttp.unref()
-const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key)&&key.toUpperCase()!=='PATH')),PATH:join(workspace,'node_modules','.bin')+delimiter+(process.env.PATH??process.env.Path??''),DSH_PRIMARY_RUNTIME:'',DSH_HOME:home,DSH_SYSTEM_PROMPT:'Isolated UI fixture. No model requests.',DEEPSEEK_API_KEY:'isolated-no-model-call',DEEPSEEK_BASE_URL:'http://127.0.0.1:'+modelHttp.address().port+'/v1',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token'}
+await mkdir(join(area,'temp'),{recursive:true})
+const env={...Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key)&&key.toUpperCase()!=='PATH')),PATH:join(workspace,'node_modules','.bin')+delimiter+(process.env.PATH??process.env.Path??''),TEMP:join(area,'temp'),TMP:join(area,'temp'),TMPDIR:join(area,'temp'),NPM_CONFIG_CACHE:join(workspace,'.npm-cache'),DSH_PRIMARY_RUNTIME:'',DSH_HOME:home,DSH_SYSTEM_PROMPT:'Isolated UI fixture. No model requests.',DEEPSEEK_API_KEY:'isolated-no-model-call',DEEPSEEK_BASE_URL:'http://127.0.0.1:'+modelHttp.address().port+'/v1',ONEBOT_ACCESS_TOKEN:'isolated-onebot-token'}
 const records=[]
 async function run(command,args,cwd){
  const child=spawn(command,args,{cwd,env,signal:AbortSignal.timeout(120000),windowsHide:true,stdio:['ignore','pipe','pipe']})
@@ -41,11 +42,11 @@ async function run(command,args,cwd){
  return stdout
 }
 await run(process.execPath,[dsh,'--profile',profile,'--from-default-profile','web','--dump-config'],area)
-await prepareQaProfile(workspace,hostRoot,profileRoot)
-await writeFile(join(profileRoot,'.npmrc'),'package-import-method=copy\nstore-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
+await prepareQaProfile(workspace,hostRoot,profileRoot,libraryArchive)
+await writeFile(join(profileRoot,'.npmrc'),'package-import-method=hardlink\nstore-dir='+join(workspace,'.test-artifacts','pnpm-store').replaceAll('\\','/')+'\ncache-dir='+join(workspace,'.test-artifacts','pnpm-cache').replaceAll('\\','/')+'\n')
 const pnpm=await pnpmScript(workspace)
 await run(process.execPath,[pnpm,'add','@deepseek-ai/cordis@4.1.0','@deepseek-ai/schemastery@3.19.0','@deepseek-ai/dsh-credentials@0.2.2-rc.1','@deepseek-ai/dsh-config-editor@0.2.2-rc.1','@deepseek-ai/dsh-typert-protocol@0.2.2-rc.1','--ignore-scripts'],profileRoot)
-await run(process.execPath,[dsh,'plugin','--profile',profile,'add',pluginArchive],area)
+await run(process.execPath,[dsh,'plugin','--profile',profile,'add',pluginArchive,'--ignore-scripts'],area)
 await writeFile(join(profileRoot,'cordis.patch.yml'),yaml.stringify([{id:'qq-onebot-control',config:{statusRefreshMs:250}}]))
 const server=new WebSocketServer({host:'127.0.0.1',port:0})
 await once(server,'listening')
@@ -102,11 +103,12 @@ try{
  await page.waitForFunction(()=>[...document.querySelectorAll('.qqob-status dl>div')].some(row=>/QQ 在线证据|QQ online evidence/.test(row.textContent??'')&&/是|Yes/.test(row.querySelector('dd')?.textContent??'')))
  assert.equal(connections,1)
  checks.push('native-ui-save-applied-and-verified')
+ await form.locator('details').evaluateAll(items=>{for(const item of items)item.open=true});for(const [label,value]of[[/每条外层消息的转发节点上限|Maximum forward nodes per root/,'123'],[/每条外层消息的转发资源上限|Maximum forward resources per root/,'17'],[/内联转发深度上限|Maximum inline forward depth/,'5'],[/并行转发读取上限|Maximum concurrent forward reads/,'3']])await form.getByLabel(label).fill(value);const nextConnection=once(server,'connection',{signal:AbortSignal.timeout(15000)});void nextConnection.catch(()=>{});await form.getByRole('button',{name:/^保存并应用$|^Save and apply$/}).click();await nextConnection;await form.getByText(/已保存配置正在运行|Saved configuration is applied/).waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('.qqob-status dl>div')].some(row=>/QQ 在线证据|QQ online evidence/.test(row.textContent??'')&&/是|Yes/.test(row.querySelector('dd')?.textContent??'')));assert.equal(connections,2);checks.push('four-forward-capacities-save-and-apply-through-native-owner-ui')
  await form.getByLabel(/预期机器人 QQ 号|Expected QQ account/).fill('not-an-account')
  await form.getByRole('button',{name:/^保存并应用$|^Save and apply$/}).click()
  await form.locator('[aria-invalid="true"]').waitFor()
  assert.equal(await form.getByLabel(/预期机器人 QQ 号|Expected QQ account/).inputValue(),'not-an-account')
- assert.equal(connections,1)
+ assert.equal(connections,2)
  await form.getByRole('button',{name:/放弃修改|Discard changes/}).click()
  checks.push('invalid-ui-edit-keeps-draft-and-running-transport')
  await page.setViewportSize({width:1280,height:1800})
@@ -136,11 +138,14 @@ try{
  await page.getByText('dsh-qq-onebot',{exact:true}).first().click({timeout:15000})
  await form.getByLabel(/预期机器人 QQ 号|Expected QQ account/).waitFor()
  assert.equal(await form.getByLabel(/预期机器人 QQ 号|Expected QQ account/).inputValue(),'90000001')
+ await form.locator('details').evaluateAll(items=>{for(const item of items)item.open=true});assert.equal(await form.getByLabel(/每条外层消息的转发节点上限|Maximum forward nodes per root/).inputValue(),'123');assert.equal(await form.getByLabel(/并行转发读取上限|Maximum concurrent forward reads/).inputValue(),'3')
  checks.push('browser-reload-retains-saved-config')
+ const reconnect=once(server,'connection',{signal:AbortSignal.timeout(15000)});void reconnect.catch(()=>{})
  await form.getByRole('button',{name:/按已保存配置重连|Reconnect saved configuration/}).click()
+ await reconnect
  await page.getByText(/^已开始重新连接$|^Reconnection started$/).waitFor({timeout:15000})
  await page.waitForFunction(()=>[...document.querySelectorAll('.qqob-status dl>div')].some(row=>/QQ 在线证据|QQ online evidence/.test(row.textContent??'')&&/是|Yes/.test(row.querySelector('dd')?.textContent??'')))
- assert.equal(connections,2)
+ assert.equal(connections,3)
  await form.getByRole('switch',{name:/启用传输|Enable transport/}).click()
  await form.getByRole('button',{name:/^保存并应用$|^Save and apply$/}).click()
  await form.getByText(/通道未启用|Transport is disabled/).waitFor({timeout:15000})

@@ -29,6 +29,10 @@ export interface Config {
   maxSegments: number
   maxTextChars: number
   maxReferences: number
+  maxForwardNodes: number
+  maxForwardResources: number
+  maxForwardDepth: number
+  maxForwardCalls: number
   maxPendingMessages: number
   maxQueuedMessageBytes: number
   maxReferenceBytes: number
@@ -66,6 +70,10 @@ export const CONFIG_FIELDS = {
   maxSegments: { kind: 'number', section: 'advanced' },
   maxTextChars: { kind: 'number', section: 'advanced' },
   maxReferences: { kind: 'number', section: 'advanced' },
+  maxForwardNodes: { kind: 'number', section: 'advanced' },
+  maxForwardResources: { kind: 'number', section: 'advanced' },
+  maxForwardDepth: { kind: 'number', section: 'advanced' },
+  maxForwardCalls: { kind: 'number', section: 'advanced' },
   maxPendingMessages: { kind: 'number', section: 'advanced' },
   maxQueuedMessageBytes: { kind: 'number', section: 'advanced' },
   maxReferenceBytes: { kind: 'number', section: 'advanced' },
