@@ -39,7 +39,7 @@ export function verifyPair(english,chinese){
 /** Reject files not deliberately permitted in the public artifact. */
 export function verifyFiles(paths){
  const exact=['LICENSE','README.md','README.zh.md','README.i18n.yaml','package.json','cordis.patch.yml']
- for(const path of paths)assert.ok(exact.includes(path)||/^dist\/(?:client\/)?[a-z][a-z-]*\.(?:js|d\.ts)$/.test(path)||/^docs\/upgrade-guide\/(?:v0\.1\.0\/native-control|v0\.2\.1\/forward-reads)\/guide(?:\.zh\.md|\.md|\.i18n\.yaml)$/.test(path),'Unexpected published file '+path)
+ for(const path of paths)assert.ok(exact.includes(path)||/^dist\/(?:client\/)?[a-z][a-z-]*\.(?:js|d\.ts)$/.test(path)||/^docs\/upgrade-guide\/(?:v0\.1\.0\/native-control|v0\.2\.1\/forward-reads|v0\.3\.0-development\/forward-dispatch)\/guide(?:\.zh\.md|\.md|\.i18n\.yaml)$/.test(path),'Unexpected published file '+path)
  for(const required of [...exact,'dist/index.js','dist/index.d.ts','dist/control.js','dist/client.js','dist/client/index.d.ts'])assert.ok(paths.includes(required),'Missing public file '+required)
 }
 
@@ -61,6 +61,7 @@ async function main(){
  assert.equal(guide.split('\n').length,chineseGuide.split('\n').length)
  assert.ok(guide.trim().split(/\s+/).length<=500)
  const forwardGuide=new URL('../docs/upgrade-guide/v0.2.1/forward-reads/',import.meta.url);verifyGuide(await readFile(new URL('guide.md',forwardGuide),'utf8'),await readFile(new URL('guide.zh.md',forwardGuide),'utf8'))
+ const dispatchGuide=new URL('../docs/upgrade-guide/v0.3.0-development/forward-dispatch/',import.meta.url);verifyGuide(await readFile(new URL('guide.md',dispatchGuide),'utf8'),await readFile(new URL('guide.zh.md',dispatchGuide),'utf8'))
  const patch=await readFile(new URL('../cordis.patch.yml',import.meta.url),'utf8')
  assert.match(patch,/enabled: false/)
  for(const entry of await readdir(new URL('../src/',import.meta.url),{withFileTypes:true})){
@@ -83,6 +84,7 @@ async function main(){
  verifyCompiledSources(pack[0].files.map(file=>file.path),(await modules(resolve(root,'src'))).map(path=>relative(root,path).replaceAll('\\','/')))
  for(const name of ['guide.md','guide.zh.md','guide.i18n.yaml'])assert.ok(pack[0].files.some(file=>file.path==='docs/upgrade-guide/v0.1.0/native-control/'+name),'Missing upgrade guide '+name)
  for(const name of ['guide.md','guide.zh.md','guide.i18n.yaml'])assert.ok(pack[0].files.some(file=>file.path==='docs/upgrade-guide/v0.2.1/forward-reads/'+name),'Missing new upgrade guide '+name)
+ for(const name of ['guide.md','guide.zh.md','guide.i18n.yaml'])assert.ok(pack[0].files.some(file=>file.path==='docs/upgrade-guide/v0.3.0-development/forward-dispatch/'+name),'Missing dispatch upgrade guide '+name)
  console.log(JSON.stringify({package:manifest.name,checks:['manifest','paired-docs','disabled-bundle','source-hygiene','packed-file-allowlist'],passed:true}))
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))await main()

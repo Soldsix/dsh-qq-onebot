@@ -30,7 +30,7 @@ Forward mode uses an authenticated universal ws connection on loopback or wss re
 For an existing DSH profile, install the release archive; its messaging-library dependency is fetched automatically:
 
 ```sh
-dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.3.0-development/dsh-qq-onebot-0.3.0-development.tgz
+dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.4.0-development/dsh-qq-onebot-0.4.0-development.tgz
 ```
 
 After installing the bundle with dsh plugin --profile PROFILE add ARCHIVE, open Plugins → dsh-qq-onebot in the native Web app. The page edits connection, access and advanced limits. Saving uses ConfigEditor's validated, transactional profile edit; it preserves untouched expressions and rejects a stale revision. Activation failure rolls back through the Host editor. Reconnection uses saved settings and never resends messages.
@@ -47,7 +47,13 @@ Reads retain node order, ordinary reply IDs, inline nodes and the original respo
 
 maxForwardNodes, maxForwardResources, maxForwardDepth and maxForwardCalls are editable in native advanced settings; maxReferenceBytes also bounds the complete retained cache. Excess data is rejected intact without truncation or partial media grants. Successful fetches refresh outer-reference retention; cache hits do not. Forwarded media locations use mediaSource under the original outer scope; this does not prove original-byte download, image recognition or complete cross-resource expansion.
 
-The parser covers [OneBot standard nodes](https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_forward_msg-获取合并转发消息) and [NapCat response nodes](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/GetForwardMsg.ts). Conflicting nonempty content fields fail explicitly. Original downloading, model-visible rendering, recursive resource policy and merged sending belong to later independent capabilities; see the [upgrade guide](docs/upgrade-guide/v0.2.1/forward-reads/guide.md).
+The parser covers [OneBot standard nodes](https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_forward_msg-获取合并转发消息) and [NapCat response nodes](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/GetForwardMsg.ts). Conflicting nonempty content fields fail explicitly. Original downloading, model-visible rendering and recursive resource policy belong to independent consumers; see the [reading upgrade guide](docs/upgrade-guide/v0.2.1/forward-reads/guide.md).
+
+### Explicit merged-forward output
+
+Trusted Host adapters call sendForwardNodes(scope, nodes, signal), using [the backend forward extension](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/SendForwardMsg.ts). It checks current online/mute evidence, node/depth/byte capacities and exact outbound-media scope. Supported bytes are sent unchanged; reference-only nodes require unexpired admitted messages in the same scope. Unsupported content rejects the whole write. The backend chooses delivery timestamps; sender display fields remain claims.
+
+registerForwardDispatcher installs one Host resolver for a sole outbound forward part; its disposer aborts and joins pending sends before replacement. A consumer must retain complete content, resolve its opaque reference and own operation deduplication. Without a resolver the part fails unavailable; mixed ordinary/forward parts remain rejected. messageSnapshot reads detached cached normalized content with its existing attachment handles, without reparsing or global get_msg. See the [dispatch upgrade guide](docs/upgrade-guide/v0.3.0-development/forward-dispatch/guide.md).
 
 <a id="verify-this-package"></a>
 ## Verify this package
@@ -88,7 +94,7 @@ Indirect. This bundle defines no model tools, changes no prompt and starts no mo
 - Incoming deduplication and source retention are bounded in-memory caches, not a durable archive or exactly-once guarantee.
 - One selected account per profile is supported. A second provider cannot silently replace its messaging service.
 - Muting uses available member timestamps and observed ban notices; a protocol that omits mute evidence cannot prove every pre-existing whole-group mute.
-- Files and merged-forward output require later explicit capability adapters; they are rejected rather than disguised as text or images.
+- File output remains unsupported. Complete merged-forward assembly, durable deduplication and original downloading require explicit consumer adapters; transport dispatch alone does not implement them.
 - No protocol client, credentials, private persona, user archive or image collection is included.
 - Native Web checks use isolated synthetic endpoints. Real QQ, model API and desktop-client verification require separate authorized checks.
 

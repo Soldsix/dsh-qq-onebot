@@ -1,5 +1,5 @@
 /** Forwarded identities are unverified claims within one admitted outer conversation. */
-import type {ConversationScope,ForwardId,MessageId,UserId,MessagePart} from 'dsh-im-kit'
+import type {ConversationScope,ForwardId,MessageId,UserId,MessagePart,DeliveryReceipt} from 'dsh-im-kit'
 import type {JsonRecord} from './wire.ts'
 
 /** Inline nodes preserve their exact position among ordinary message parts. */
@@ -18,3 +18,9 @@ export type ForwardReadFailure='permission-denied'|'not-found'|'offline'|'cancel
 export type OneBotForwardResult=
  |{readonly status:'resolved';readonly scope:ConversationScope;readonly rootMessageId:MessageId;readonly resourceId:ForwardId;readonly nodes:readonly OneBotForwardNode[];readonly raw:JsonRecord}
  |{readonly status:'failed';readonly code:ForwardReadFailure}
+
+/** Installed Host resolver owns durable prepared content; models cannot register dispatchers. */
+export interface OneBotForwardDispatcher{
+ /** @param scope - authenticated outbound destination. @param resource - opaque retained output identity. @param signal - caller and registration lifetime. @returns classified receipt without automatic retries. */
+ send(scope:ConversationScope,resource:ForwardId,signal:AbortSignal):Promise<DeliveryReceipt>
+}

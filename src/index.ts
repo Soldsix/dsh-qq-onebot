@@ -14,7 +14,7 @@ export const inject = ['credentials']
 export { Config, resolveConfig, type Spec, type CredentialReader } from './config.ts'
 export { OneBotTransport, type OneBotStatus } from './transport.ts'
 export type { MediaSource } from './wire.ts'
-export type {OneBotForwardResult,OneBotForwardNode,OneBotForwardPart,ForwardReadFailure} from './forward-types.ts'
+export type {OneBotForwardResult,OneBotForwardNode,OneBotForwardPart,ForwardReadFailure,OneBotForwardDispatcher} from './forward-types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {

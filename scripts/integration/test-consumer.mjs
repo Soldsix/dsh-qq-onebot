@@ -23,13 +23,17 @@ await run([process.env.npm_execpath,'install','--ignore-scripts','--no-audit','-
 const installedFiles=await verifyInstalledArchive(archives[1],join(area,'node_modules',manifest.name),join(attempt,'installed-files.json')),consumer=join(attempt,'consumer.ts')
 await writeFile(consumer,`import z from '@deepseek-ai/schemastery'
 import type {Context} from '@deepseek-ai/cordis'
-import {Config,OneBotTransport,type OneBotForwardResult} from 'dsh-qq-onebot'
+import {Config,OneBotTransport,type OneBotForwardResult,type OneBotForwardDispatcher,type OneBotForwardNode} from 'dsh-qq-onebot'
 import type {ConversationScope,MessageId,ForwardId} from 'dsh-im-kit'
 import type * as Client from 'dsh-qq-onebot/client'
 const config=z.resolve({enabled:false},Config,{})[0]
 const limit:number=config.maxForwardNodes+config.maxForwardResources+config.maxForwardDepth+config.maxForwardCalls
 async function read(ctx:Context,scope:ConversationScope,root:MessageId,resource:ForwardId,signal:AbortSignal):Promise<OneBotForwardResult>{return ctx.qqOnebot.readForward(scope,root,resource,signal)}
 void limit;void read;void OneBotTransport
+async function write(ctx:Context,scope:ConversationScope,nodes:readonly OneBotForwardNode[],signal:AbortSignal){return ctx.qqOnebot.sendForwardNodes(scope,nodes,signal)}
+function register(ctx:Context,dispatcher:OneBotForwardDispatcher){return ctx.qqOnebot.registerForwardDispatcher(dispatcher)}
+function cached(ctx:Context,scope:ConversationScope,id:MessageId){return ctx.qqOnebot.messageSnapshot(scope,id)}
+void write;void register;void cached
 export type NativeClient=typeof Client
 `)
 const program=ts.createProgram([consumer],{strict:true,noEmit:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.NodeNext,moduleResolution:ts.ModuleResolutionKind.NodeNext,types:['node','react'],typeRoots:[join(area,'node_modules','@types')],lib:['lib.es2023.d.ts','lib.esnext.disposable.d.ts','lib.dom.d.ts'],skipLibCheck:false,allowImportingTsExtensions:true,jsx:ts.JsxEmit.ReactJSX}),diagnostics=ts.getPreEmitDiagnostics(program)
@@ -38,6 +42,7 @@ const compiler=await realpath(join(root,'node_modules','typescript','lib')),inpu
 await writeFile(join(attempt,'runtime.mjs'),`import assert from 'node:assert/strict'
 import {Config,OneBotTransport,resolveConfig,name} from 'dsh-qq-onebot'
 assert.equal(name,'qq-onebot');assert.equal(Config({}).enabled,false);assert.equal(resolveConfig(Config({}),{}),null);assert.equal(typeof OneBotTransport.prototype.readForward,'function')
+assert.equal(typeof OneBotTransport.prototype.sendForwardNodes,'function');assert.equal(typeof OneBotTransport.prototype.registerForwardDispatcher,'function');assert.equal(typeof OneBotTransport.prototype.messageSnapshot,'function')
 console.log(JSON.stringify({passed:true,applicationsStarted:0,connectionsOpened:0}))
 `)
 const runtime=JSON.parse((await run([join(attempt,'runtime.mjs')])).trim()),result={passed:true,archiveSha256:createHash('sha256').update(await readFile(archives[1])).digest('hex'),installedFiles,declarationInputs:inputs.length,ancestorDependenciesBorrowed:false,strictDeclarationErrors:0,runtime,realModelCalls:0,qqMessages:0,bilibiliWrites:0}

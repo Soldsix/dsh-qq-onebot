@@ -30,7 +30,7 @@ Bundle 插入默认停用的 qq-onebot-transport 和独立的 qq-onebot-control 
 在已有的 DSH profile 中安装发行包，共用消息库会自动取得：
 
 ```sh
-dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.3.0-development/dsh-qq-onebot-0.3.0-development.tgz
+dsh plugin --profile MY_PROFILE add https://github.com/Soldsix/dsh-qq-onebot/releases/download/v0.4.0-development/dsh-qq-onebot-0.4.0-development.tgz
 ```
 
 通过 dsh plugin --profile PROFILE add ARCHIVE 安装后，在原生 Web 应用打开“插件 → dsh-qq-onebot”，可编辑连接、访问与高级限制。保存使用 ConfigEditor 的校验与事务编辑，保留未改动的表达式，拒绝过期版本；启用失败由宿主编辑器回滚。重连只使用已保存配置，不重发消息。
@@ -47,7 +47,13 @@ Host 读者可调用 ctx.qqOnebot.readForward(scope, rootMessageId, resourceId, 
 
 maxForwardNodes、maxForwardResources、maxForwardDepth 和 maxForwardCalls 可在原生高级设置调整；总缓存还受 maxReferenceBytes 限制。超限拒绝完整响应，不静默截断、不留部分媒体授权。成功读取刷新外层引用的保留时间，缓存命中不续期。转发媒体通过原外层范围的 mediaSource 获取来源；这不代表已下载原件、识图或完成多轮网络展开。
 
-解析覆盖 [OneBot 标准节点](https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_forward_msg-获取合并转发消息)与 [NapCat 返回节点](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/GetForwardMsg.ts)，存在矛盾的非空内容字段明确拒绝。原件下载、模型可见渲染、跨资源递归策略与合并发送由后续独立能力完成；见[升级指南](docs/upgrade-guide/v0.2.1/forward-reads/guide.zh.md)。
+解析覆盖 [OneBot 标准节点](https://github.com/botuniverse/onebot-11/blob/master/api/public.md#get_forward_msg-获取合并转发消息)与 [NapCat 返回节点](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/GetForwardMsg.ts)，存在矛盾的非空内容字段明确拒绝。原件下载、模型可见渲染与跨资源递归策略由独立消费者完成；见[读取升级指南](docs/upgrade-guide/v0.2.1/forward-reads/guide.zh.md)。
+
+### 明确的合并转发输出
+
+可信 Host 适配器可调用 sendForwardNodes(scope, nodes, signal)，使用[后端转发扩展](https://github.com/NapNeko/NapCatQQ/blob/98d781d19815d1625b24d717ce280ecf0a4f6d0c/packages/napcat-onebot/action/go-cqhttp/SendForwardMsg.ts)。发送前检查当前在线与禁言证据、节点/深度/字节容量及媒体的精确目标范围；支持的字节原样发送，仅引用节点要求同范围内未过期的已接纳消息，不支持的内容拒绝整条发送。投送时间由后端决定，发送者显示字段仍只是声明。
+
+registerForwardDispatcher 为单独的出站 forward 段安装一个 Host 解析器；清理会取消并等待发送结束，之后才能替换。消费者负责完整内容保留、不透明引用解析和操作去重；未安装解析器返回 unavailable，普通段与 forward 混排仍拒绝。messageSnapshot 读取带原附件引用的独立规范化缓存，不重新解析、不全局查询 get_msg。见[投送升级指南](docs/upgrade-guide/v0.3.0-development/forward-dispatch/guide.zh.md)。
 
 <a id="verify-this-package"></a>
 ## 验证本包
@@ -88,7 +94,7 @@ QA 依赖覆盖是经过测试的开发输入，不代表使用者的宿主已�
 - 入站去重与来源保留是有上限的内存缓存，不是持久归档，也不保证端到端恰好一次。
 - 每个 profile 支持一个选定账号，第二提供方不能静默替换现有消息服务。
 - 禁言判断使用可取得的成员时间戳和已观测通知；协议缺少证据时，不能证明所有预先存在的全群禁言状态。
-- 文件和合并转发输出需后续独立能力适配；本包明确拒绝，不伪装成文字或图片。
+- 文件输出仍不支持。完整合并转发组装、持久去重与原件下载需要明确的消费者适配器，仅传输投送接口不实现这些功能。
 - 不包含协议客户端、凭据、私人人设、用户归档或图库。
 - 原生 Web 验收使用隔离合成端点；真实 QQ、模型 API 和桌面客户端需要另行授权验证。
 

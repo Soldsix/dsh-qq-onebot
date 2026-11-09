@@ -21,10 +21,15 @@ export function apply(ctx,config){
   const nested=await ctx.qqOnebot.readForward(message.scope,message.messageId,forward.nodes[0].parts[3].resourceId,signal);assert.equal(nested.status,'resolved');assert.equal(nested.nodes[0].parts[0].text,'NATIVE_NESTED_ORIGINAL')
   assert.equal((await ctx.qqOnebot.readForward(message.scope,message.messageId,resource.resourceId,signal)).nodes[0].parts[0].text,'NATIVE_FORWARD_ORIGINAL')
   const receipt=await ctx.im.send({scope:message.scope,operationId:'isolated-host-operation',parts:[{type:'reply',messageId:message.messageId},{type:'text',text:'isolated DSH reply'}]},signal)
+  assert.deepEqual(ctx.qqOnebot.messageSnapshot(message.scope,message.messageId),message)
+  const original=Uint8Array.of(0,1,2,253,254,255),outbound=ctx.qqOnebot.registerMedia(message.scope,'image',original)
+  const release=ctx.qqOnebot.registerForwardDispatcher({async send(scope,resource,abort){assert.equal(resource,'native-prepared');return ctx.qqOnebot.sendForwardNodes(scope,[{claimedSender:{id:message.senderId,name:'Synthetic sender'},parts:[{type:'text',text:'NATIVE_MERGED_ORIGINAL'},{type:'image',attachmentId:outbound}]}],abort)}})
+  let mergedReceipt
+  try{mergedReceipt=await ctx.im.send({scope:message.scope,operationId:'isolated-forward-operation',parts:[{type:'forward',resourceId:'native-prepared'}]},signal)}finally{await release();ctx.qqOnebot.releaseMedia(message.scope,outbound)}
   const forms=ctx.settings.describe({redactSecrets:true})
   await record(config.resultPath,{
    received:true,messageId:message.messageId,directedToBot:message.directedToBot,
-   receipt,generatedSettingsForm:forms.some(form=>form.ns==='qq-onebot-transport'),settingsNamespaces:forms.map(form=>form.ns),forwardReads:true,forwardScopes:true,forwardMedia:true,
+   receipt,mergedReceipt,forwardDispatch:true,normalizedSnapshot:true,generatedSettingsForm:forms.some(form=>form.ns==='qq-onebot-transport'),settingsNamespaces:forms.map(form=>form.ns),forwardReads:true,forwardScopes:true,forwardMedia:true,
    modelRequests:0,qqMessagesSent:0,transport:'isolated-loopback-OneBot',
   })
  },()=>true))

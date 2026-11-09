@@ -1,6 +1,6 @@
 {
   "name": "dsh-qq-onebot",
-  "version": "0.3.0-development",
+  "version": "0.4.0-development",
   "description": "Independently installable OneBot 11 messaging provider for DSH profiles.",
   "type": "module",
   "license": "MIT",

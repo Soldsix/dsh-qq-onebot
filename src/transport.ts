@@ -8,13 +8,13 @@ import {
   type MessageId, type MessageKey, type MessagePart, type OutboundMessage, type ForwardId,
 } from 'dsh-im-kit'
 import type { Spec } from './config.ts'
-import { OneBotSocket } from './socket.ts'
+import { OneBotSocket,type ActionResult } from './socket.ts'
 import { allowsScope, isRecord, parseMessage, wireId, type JsonRecord, type MediaSource, type ParsedMessage, type WireSegment } from './wire.ts'
 import { waitFor } from './waiter.ts'
 import { configRevision } from './config-revision.ts'
 import type { OneBotStatus } from './status.ts'
 import {parseForward,type ParsedForward} from './forward-wire.ts'
-import type {OneBotForwardResult} from './forward-types.ts'
+import type {OneBotForwardResult,OneBotForwardNode,OneBotForwardDispatcher} from './forward-types.ts'
 export type { OneBotStatus } from './status.ts'
 
 /** Callbacks belong to the owning plugin; publishers must settle after cancellation. */
@@ -26,6 +26,7 @@ export interface TransportHooks {
 
 interface StoredMessage { readonly parsed: ParsedMessage; bytes: number; expires: number; readonly forwardGrants:Set<ForwardId>; readonly forwards:Map<ForwardId,ParsedForward>; forwardNodes:number }
 interface ForwardFlight{readonly root:MessageKey;readonly controller:AbortController;readonly done:Promise<OneBotForwardResult>;waiters:number}
+interface ForwardDispatch{readonly dispatcher:OneBotForwardDispatcher;readonly lifetime:AbortController;readonly pending:Set<Promise<DeliveryReceipt>>;closing?:Promise<void>}
 interface StoredMedia { readonly scope: ConversationScope; readonly kind: 'image' | 'audio' | 'video' | 'file'; readonly bytes: Buffer; readonly name?: string; readonly expires: number }
 interface Member { readonly role: 'member' | 'admin' | 'owner'; readonly until: number; readonly observedAt: number; readonly expires: number }
 interface Mute { individual?: { readonly until: number; readonly at: number }; whole?: { readonly active: boolean; readonly at: number } }
@@ -51,6 +52,7 @@ export class OneBotTransport implements ImTransport {
   readonly #forwardCalls = new Map<string,ForwardFlight>()
   readonly #forwardTasks = new Set<Promise<OneBotForwardResult>>()
   readonly #forwardPins = new Map<MessageKey,number>()
+  #forwardDispatch:ForwardDispatch|undefined
   readonly #early: { readonly parsed: ParsedMessage; readonly bytes: number }[] = []
   #health: AbortController | undefined
   #phase: OneBotStatus['phase'] = 'connecting'
@@ -139,11 +141,16 @@ export class OneBotTransport implements ImTransport {
     const availability = await this.availability(message.scope, signal)
     if (availability !== 'available') return { status: 'failed', code: availability }
     if (signal.aborted) return { status: 'failed', code: 'cancelled' }
+    if(message.parts.length===1&&message.parts[0]?.type==='forward')return this.dispatchForward(message.scope,message.parts[0].resourceId,signal)
     const encoded = this.encode(message.scope, message.parts)
     if (!encoded) return { status: 'failed', code: 'rejected' }
     const result = await this.#socket.call(message.scope.kind === 'group' ? 'send_group_msg' : 'send_private_msg', {
       [message.scope.kind === 'group' ? 'group_id' : 'user_id']: Number(message.scope.peerId), message: encoded,
     }, signal)
+    return this.receipt(result)
+  }
+
+  private receipt(result:ActionResult):DeliveryReceipt{
     if (result.kind === 'ok') {
       const id = isRecord(result.data) ? wireId(result.data.message_id) : null
       return id === null ? { status: 'uncertain', code: 'provider-error' } : { status: 'accepted', messageIds: [identifier('im.message', id)] }
@@ -151,6 +158,54 @@ export class OneBotTransport implements ImTransport {
     if (result.kind === 'rejected') return { status: 'failed', code: result.retcode === 1403 || result.retcode === 403 ? 'permission-denied' : 'rejected' }
     if (result.kind === 'not-sent') return { status: 'failed', code: result.code === 'cancelled' ? 'cancelled' : result.code === 'offline' ? 'offline' : 'unavailable' }
     return { status: 'uncertain', code: result.code === 'timeout' ? 'timeout' : result.code === 'cancelled' ? 'cancelled-after-dispatch' : 'provider-error' }
+  }
+
+  /** @param dispatcher - installed durable forward-output resolver for this transport. @returns idempotent disposer after aborting and joining its pending sends. */
+  registerForwardDispatcher(dispatcher:OneBotForwardDispatcher):()=>Promise<void>{
+    if(this.#lifetime.signal.aborted||this.#forwardDispatch)throw new Error('Forward dispatcher cannot be registered')
+    const registration:ForwardDispatch={dispatcher,lifetime:new AbortController(),pending:new Set()};this.#forwardDispatch=registration
+    return()=>this.closeForwardDispatcher(registration)
+  }
+  private closeForwardDispatcher(registration:ForwardDispatch):Promise<void>{
+    if(registration.closing)return registration.closing
+    registration.lifetime.abort()
+    return registration.closing=(async()=>{await Promise.allSettled([...registration.pending]);if(this.#forwardDispatch===registration)this.#forwardDispatch=undefined})()
+  }
+  private async dispatchForward(scope:ConversationScope,resource:ForwardId,signal:AbortSignal):Promise<DeliveryReceipt>{
+    const registration=this.#forwardDispatch
+    if(!registration||registration.lifetime.signal.aborted)return{status:'failed',code:'unavailable'}
+    if(registration.pending.size>=this.#spec.maxPendingActions)return{status:'failed',code:'unavailable'}
+    const combined=AbortSignal.any([signal,this.#lifetime.signal,registration.lifetime.signal]),done=Promise.resolve().then(()=>combined.aborted?{status:'failed' as const,code:'cancelled' as const}:registration.dispatcher.send(scope,resource,combined)).catch((_error:unknown):DeliveryReceipt=>({status:'uncertain',code:'provider-error'}))
+    registration.pending.add(done);try{return await done}finally{registration.pending.delete(done)}
+  }
+
+  /**
+   * Send one complete forward through the backend extension without retrying it.
+   * @param scope - admitted destination, checked for current mute and online state.
+   * @param nodes - trusted Host nodes; displayed sender fields remain unverified claims.
+   * @param signal - caller lifetime.
+   * @returns server acceptance, definite refusal, or uncertainty; unsupported parts refuse the complete send.
+   */
+  async sendForwardNodes(scope:ConversationScope,nodes:readonly OneBotForwardNode[],signal:AbortSignal):Promise<DeliveryReceipt>{
+    const availability=await this.availability(scope,signal);if(availability!=='available')return{status:'failed',code:availability}
+    if(signal.aborted||this.#lifetime.signal.aborted)return{status:'failed',code:'cancelled'}
+    this.prune()
+    let count=0
+    const encode=(node:OneBotForwardNode,depth:number):WireSegment|null=>{
+      if(depth>this.#spec.maxForwardDepth||++count>this.#spec.maxForwardNodes)return null
+      if(node.referenceMessageId!==undefined){if(node.parts.length||!this.#messages.has(messageKey(scope,node.referenceMessageId)))return null;return{type:'node',data:{id:node.referenceMessageId}}}
+      const sender=node.claimedSender.id??this.account.accountId,name=node.claimedSender.name??String(sender)
+      if(wireId(sender)===null||!/^[1-9]/.test(sender)||name.length>this.#spec.maxTextChars||node.parts.length===0||node.parts.length>this.#spec.maxSegments)return null
+      const content:WireSegment[]=[]
+      let textChars=0
+      for(const part of node.parts){if(part.type==='text')textChars+=part.text.length;else if(part.type==='card')textChars+=part.content.length;if(textChars>this.#spec.maxTextChars)return null;if(part.type==='inline-forward'){const child=encode(part.node,depth+1);if(!child)return null;content.push(child)}else{const encoded=this.encode(scope,[part]);if(!encoded)return null;content.push(...encoded)}}
+      return{type:'node',data:{user_id:sender,nickname:name,content}}
+    }
+    if(nodes.length===0||nodes.length>this.#spec.maxForwardNodes)return{status:'failed',code:'rejected'}
+    const messages:WireSegment[]=[];for(const node of nodes){const encoded=encode(node,1);if(!encoded)return{status:'failed',code:'rejected'};messages.push(encoded)}
+    const params={[scope.kind==='group'?'group_id':'user_id']:Number(scope.peerId),messages}
+    if(Buffer.byteLength(JSON.stringify(params))>this.#spec.maxFrameBytes)return{status:'failed',code:'rejected'}
+    return this.receipt(await this.#socket.call(scope.kind==='group'?'send_group_forward_msg':'send_private_forward_msg',params,signal))
   }
 
   /**
@@ -208,6 +263,18 @@ export class OneBotTransport implements ImTransport {
     this.prune()
     const record = this.#messages.get(messageKey(scope, id))
     return record && allowsScope(scope, this.#spec) ? structuredClone(record.parsed.raw) : undefined
+  }
+
+  /**
+   * Read admitted normalized content without reparsing or allocating new attachment references.
+   * @param scope - exact original conversation.
+   * @param id - retained message identity.
+   * @returns a detached normalized snapshot, or undefined for another scope or after expiry.
+   */
+  messageSnapshot(scope:ConversationScope,id:MessageId):InboundMessage|undefined{
+    this.prune()
+    const record=this.#messages.get(messageKey(scope,id))
+    return record&&allowsScope(scope,this.#spec)?structuredClone(record.parsed.message):undefined
   }
 
   /**
@@ -461,7 +528,7 @@ export class OneBotTransport implements ImTransport {
   }
 
   private async finishDispose(): Promise<void> {
-    const results = await Promise.allSettled([this.#socket.close(), ...this.#healthTasks, ...this.#deliveries, ...this.#memberTasks.values(),...this.#forwardTasks])
+    const results = await Promise.allSettled([this.#socket.close(), ...this.#healthTasks, ...this.#deliveries, ...this.#memberTasks.values(),...this.#forwardTasks,...this.#forwardDispatch?[this.closeForwardDispatcher(this.#forwardDispatch)]:[]])
     this.#messages.clear(); this.#sources.clear(); this.#media.clear(); this.#members.clear(); this.#mutes.clear(); this.#activeMessages.clear(); this.#early.length = 0; this.#queuedBytes = 0; this.#referenceBytes = 0; this.#mediaBytes = 0
     this.#forwardCalls.clear();this.#forwardPins.clear();this.#forwardTasks.clear()
     const failures: unknown[] = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
