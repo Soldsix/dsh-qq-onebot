@@ -68,7 +68,7 @@ npm run test:web
 npm run test:consumer -- --im-kit-archive PATH_TO_VERIFIED_LIBRARY_TGZ
 ```
 
-Web 测试需安装 Playwright 对应的 Chromium headless shell；将 PLAYWRIGHT_BROWSERS_PATH 指向测试专用目录，先运行 node node_modules/playwright/cli.js install chromium --only-shell，再执行 test:web。测试使用全新浏览器资料，结果保存在 .test-artifacts；本源码仓库包含全部三种测试入口和探针。
+Web 测试需安装 Playwright 对应的 Chromium headless shell；将 PLAYWRIGHT_BROWSERS_PATH 指向测试专用目录，先运行 node node_modules/playwright/cli.js install chromium --only-shell，再执行 test:web。测试使用全新浏览器资料，结果保存在 .test-artifacts；本源码仓库包含全部三种测试入口和探针。全新消费者 harness 对已校验 SHA256 的 im-kit 归档设置明确的 npm 根级 override，让传递依赖使用相同字节而不再次下载；仅改变私有测试根，不改公开包清单。
 
 QA 依赖覆盖是经过测试的开发输入，不代表使用者的宿主已更新。插件自身的 overrides 不会传递到消费 profile，宿主预构建资源也可能内嵌其他版本。宿主依赖更新需另行应用和验证；npm audit 结果只覆盖记录的包依赖树。
 

@@ -68,7 +68,7 @@ npm run test:web
 npm run test:consumer -- --im-kit-archive PATH_TO_VERIFIED_LIBRARY_TGZ
 ```
 
-The Web test requires Playwright's matching Chromium headless shell. Set PLAYWRIGHT_BROWSERS_PATH to a test-only directory and run node node_modules/playwright/cli.js install chromium --only-shell there before test:web. The test uses a fresh browser profile; output goes to .test-artifacts. The source repository contains all three harnesses and probes.
+The Web test requires Playwright's matching Chromium headless shell. Set PLAYWRIGHT_BROWSERS_PATH to a test-only directory and run node node_modules/playwright/cli.js install chromium --only-shell there before test:web. The test uses a fresh browser profile; output goes to .test-artifacts. The source repository contains all three harnesses and probes. The fresh-consumer harness applies an explicit npm root override to its SHA256-verified im-kit archive so transitive edges use those same bytes without another download; this changes only the private test root, not the published manifest.
 
 The QA dependency overrides are tested development inputs, not an upgrade of an installed consumer's Host. Plugin dependency overrides do not propagate into a consuming profile, and prebuilt Host assets may embed other versions. Apply and verify Host dependency updates separately; an npm audit result covers its recorded package tree only.
 

@@ -3,11 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write README.md
 /:
-  en: cb3f91d54eee30e5
-  zh: cb3f91d54eee30e5
-/description-add-one-authenticated-onebot-11-account-and-scoped-message-delivery-to-a-dsh-profile-kind-package-bundle:
-  en: b1c4342f2c891a77
-  zh: 997ad8aed1bed8df
+  en: 96f9b2fd3024efd6
+  zh: c48ef1d5236c18d3
 /dsh-qq-onebot:
   en: dc50cd39386c921b
   zh: 751492f2b328684f
@@ -15,8 +12,8 @@
   en: ef2a2eb651977566
   zh: 670661812d92b022
 /dsh-qq-onebot/table-of-contents:
-  en: f365911e2ba02a3e
-  zh: f668087c61484cf9
+  en: d712d4e174dcef9e
+  zh: e082aef1b240ba18
 /dsh-qq-onebot/use-this-package:
   en: 196b5a3c95b37cc1
   zh: e6d730c43fbc5e8f
@@ -27,20 +24,20 @@
   en: 547535d4400701ba
   zh: 014a1dff0094eb71
 /dsh-qq-onebot/verify-this-package:
-  en: 9abeb58607b20a0b
-  zh: b7b553e3f994ffd7
+  en: 6ec7bf70b080dfce
+  zh: 619ed2b54c4a3672
 /dsh-qq-onebot/understand-the-implementation:
-  en: def1ec34700d20e1
-  zh: 0059555e8eea0762
+  en: 48b3ccb4d8c2812f
+  zh: e7fdd5411d15f850
 /dsh-qq-onebot/model-experience:
   en: b6a025d9c33fd090
   zh: 873061e76ffa6ca4
 /dsh-qq-onebot/known-limitations-and-deferred-work:
-  en: 1b72327c9d4cdd38
-  zh: ea91a26258fa1c4d
+  en: 6d45d4cb6c236874
+  zh: b01d64f9d44f00bc
 /dsh-qq-onebot/further-exploration:
-  en: 6e2a158d117f2731
-  zh: 6cfc3603ad1b29fb
+  en: 82cb90d4e68a18ed
+  zh: bec670ebe162201a
 /dsh-qq-onebot/dev-note:
   en: b4a2eacf24f77c66
   zh: bca807a72ce902d5

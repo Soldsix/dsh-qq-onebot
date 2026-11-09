@@ -8,6 +8,7 @@ import {fileURLToPath} from 'node:url'
 import ts from 'typescript'
 import {verifyInstalledArchive} from './verify-installed.mjs'
 import {imKitInput} from '../release-spec.mjs'
+import {consumerManifest} from './consumer-manifest.mjs'
 const root=fileURLToPath(new URL('../../',import.meta.url)),args=process.argv
 const argument=(key,otherwise)=>{const index=args.indexOf(key);assert.ok(index<0?otherwise:args[index+1],'Pass '+key);return index<0?otherwise:args[index+1]}
 assert.ok(process.env.npm_execpath,'Run through npm run test:consumer')
@@ -15,7 +16,7 @@ const manifest=JSON.parse(await readFile(join(root,'package.json'),'utf8')),disk
 const runs=join(root,'.test-artifacts','consumer');await mkdir(runs,{recursive:true});const area=await mkdtemp(join(runs,'run-')),attempt=await mkdtemp(join(area,'attempt-')),archives=[]
 for(const source of[await realpath(argument('--im-kit-archive')),await realpath(argument('--onebot-archive',join(root,'artifacts',manifest.name+'-'+manifest.version+'.tgz')))]){const path=join(attempt,basename(source));await copyFile(source,path);archives.push(path)}
 assert.equal(createHash('sha256').update(await readFile(archives[0])).digest('hex'),imKitInput.sha256)
-await writeFile(join(area,'package.json'),JSON.stringify({name:'isolated-onebot-consumer',private:true,type:'module',overrides:manifest.overrides},null,2)+'\n');await mkdir(join(attempt,'temp'))
+await writeFile(join(area,'package.json'),JSON.stringify(consumerManifest(manifest.overrides,archives[0]),null,2)+'\n');await mkdir(join(attempt,'temp'))
 const env=Object.fromEntries(Object.entries(process.env).filter(([key])=>!/KEY|SECRET|TOKEN|PASSWORD/i.test(key)));Object.assign(env,{NPM_CONFIG_CACHE:join(root,'.npm-cache'),TEMP:join(attempt,'temp'),TMP:join(attempt,'temp')})
 const commands=[]
 async function run(argv){const timeout=AbortSignal.timeout(300000),child=spawn(process.execPath,argv,{cwd:area,env,windowsHide:true,signal:timeout,stdio:['ignore','pipe','pipe']});let stdout='',stderr='',failure;child.stdout.on('data',data=>{stdout+=data});child.stderr.on('data',data=>{stderr+=data});child.once('error',error=>{failure=error});const done=new Promise(resolve=>child.once('close',(...values)=>resolve(values)));try{await writeFile(join(attempt,'setup-live.json'),JSON.stringify({pid:child.pid})+'\n')}catch(error){child.kill('SIGKILL');await done;throw error}const [code,signal]=await done;commands.push({argv,code,signal,timedOut:timeout.aborted,stdout,stderr});await writeFile(join(attempt,'commands.json'),JSON.stringify(commands,null,2)+'\n');if(failure)throw failure;assert.equal(timeout.aborted,false);assert.equal(signal,null);assert.equal(code,0,(stderr+'\n'+stdout).slice(-1800));return stdout}
